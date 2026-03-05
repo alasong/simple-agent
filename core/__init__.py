@@ -9,6 +9,9 @@
     
     create_agent (创建 Agent)
         └── 从仓库抽取资源 + 需求 → 新 Agent
+    
+    Workflow (多 Agent 协作)
+        └── 顺序执行多个 Agent
 """
 
 from .tool import BaseTool, ToolResult, ToolRegistry
@@ -24,6 +27,7 @@ from .factory import (
     create_agent, update_prompt, get_agent, list_agents,
     AgentGenerator
 )
+from .workflow import Workflow, WorkflowStep, StepResult, ResultType, create_workflow, generate_workflow
 
 __all__ = [
     # 核心组件
@@ -50,4 +54,12 @@ __all__ = [
     "get_agent",
     "list_agents",
     "AgentGenerator",
+    
+    # Workflow
+    "Workflow",
+    "WorkflowStep",
+    "StepResult",
+    "ResultType",
+    "create_workflow",
+    "generate_workflow",
 ]

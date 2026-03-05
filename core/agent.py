@@ -196,11 +196,6 @@ class Agent:
         while iteration < self.max_iterations:
             iteration += 1
             
-            if verbose:
-                print(f"\n{'='*50}")
-                print(f"[{self.name}] 迭代 {iteration}")
-                print('='*50)
-            
             # 推理：调用 LLM
             response = self.llm.chat(
                 messages=self.memory.get_messages(),
@@ -209,9 +204,6 @@ class Agent:
             
             content = response["content"]
             tool_calls = response["tool_calls"]
-            
-            if verbose and content:
-                print(f"[思考] {content}")
             
             # 如果没有工具调用，返回结果
             if not tool_calls:
@@ -232,15 +224,7 @@ class Agent:
                 arguments = tool_call["arguments"]
                 tool_id = tool_call["id"]
                 
-                if verbose:
-                    print(f"[行动] 调用工具: {tool_name}({arguments})")
-                
                 result = self._execute_tool(tool_name, arguments)
-                
-                if verbose:
-                    status = "成功" if result.success else "失败"
-                    output = result.output or result.error or "无输出"
-                    print(f"[结果] {status}: {output[:200]}...")
                 
                 # 添加工具结果到记忆
                 self.memory.add_tool_result(
