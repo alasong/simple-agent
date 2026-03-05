@@ -55,6 +55,7 @@ class Agent:
     - 可序列化为 JSON
     - 可持久化存储
     - 可独立部署运行
+    - 支持克隆创建多个副本
     """
     
     def __init__(
@@ -66,7 +67,8 @@ class Agent:
         version: str = "1.0.0",
         description: str = "",
         max_iterations: int = 10,
-        created_at: Optional[str] = None
+        created_at: Optional[str] = None,
+        instance_id: Optional[str] = None
     ):
         self.llm = llm
         self.name = name
@@ -74,6 +76,7 @@ class Agent:
         self.description = description
         self.max_iterations = max_iterations
         self.created_at = created_at or datetime.now().isoformat()
+        self.instance_id = instance_id  # 实例标识，用于区分同一 agent 的不同副本
         self.memory = Memory(system_prompt)
         
         # 注册工具
@@ -118,6 +121,7 @@ class Agent:
             "tools": self._tool_names,
             "max_iterations": self.max_iterations,
             "created_at": self.created_at,
+            "instance_id": self.instance_id,
             "memory": self.memory.get_messages()
         }
     
@@ -156,7 +160,8 @@ class Agent:
             version=data.get("version", "1.0.0"),
             description=data.get("description", ""),
             max_iterations=data.get("max_iterations", 10),
-            created_at=data.get("created_at")
+            created_at=data.get("created_at"),
+            instance_id=data.get("instance_id")
         )
         
         # 恢复记忆
@@ -172,6 +177,31 @@ class Agent:
         with open(path, 'r', encoding='utf-8') as f:
             data = json.load(f)
         return cls.from_dict(data, llm)
+    
+    def clone(self, new_instance_id: Optional[str] = None) -> "Agent":
+        """
+        克隆当前 agent，创建一个配置相同但独立的新实例
+        
+        Args:
+            new_instance_id: 新实例的 ID，用于标识
+        
+        Returns:
+            新的 Agent 实例，具有：
+            - 相同的配置（name, tools, system_prompt 等）
+            - 独立的内存（Memory）
+            - 独立的工具注册表
+        """
+        new_agent = Agent(
+            llm=self.llm,
+            tools=list(self.tool_registry.get_all_tools()),
+            system_prompt=self.system_prompt,
+            name=self.name,
+            version=self.version,
+            description=self.description,
+            max_iterations=self.max_iterations,
+            instance_id=new_instance_id
+        )
+        return new_agent
     
     # ==================== 运行 ====================
     

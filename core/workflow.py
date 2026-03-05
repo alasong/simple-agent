@@ -63,6 +63,7 @@ class WorkflowStep:
     """工作流步骤"""
     name: str
     agent: Agent
+    instance_id: Optional[str] = None  # 实例标识，用于区分同一 agent 的不同副本
     input_key: Optional[str] = None  # 从上下文获取输入的 key
     output_key: Optional[str] = None  # 输出保存到上下文的 key
     condition: Optional[Callable[[Dict], bool]] = None  # 条件函数
@@ -245,18 +246,105 @@ class Workflow:
         input_key: Optional[str] = None,
         output_key: Optional[str] = None,
         condition: Optional[Callable[[Dict], bool]] = None,
-        result_type: ResultType = ResultType.AUTO
+        result_type: ResultType = ResultType.AUTO,
+        instance_id: Optional[str] = None
     ) -> "Workflow":
         """添加步骤"""
         step = WorkflowStep(
             name=name,
             agent=agent,
+            instance_id=instance_id,
             input_key=input_key,
             output_key=output_key,
             condition=condition,
             result_type=result_type
         )
         self.steps.append(step)
+        return self
+    
+    def add_replica_step(
+        self,
+        name: str,
+        base_agent: Agent,
+        instance_id: str,
+        input_key: Optional[str] = None,
+        output_key: Optional[str] = None,
+        result_type: ResultType = ResultType.AUTO
+    ) -> "Workflow":
+        """
+        基于现有 agent 创建一个副本步骤
+        
+        Args:
+            name: 步骤名称
+            base_agent: 基础 agent（模板）
+            instance_id: 实例标识，如 "project-A", "project-B"
+            input_key: 输入 key
+            output_key: 输出 key
+            result_type: 结果类型
+        
+        Returns:
+            Workflow 自身，支持链式调用
+        
+        示例:
+            workflow.add_replica_step(
+                name="项目 A 开发",
+                base_agent=dev_agent,
+                instance_id="project-A",
+                output_key="result_A"
+            )
+        """
+        # 克隆 agent
+        agent_replica = base_agent.clone(instance_id)
+        
+        # 添加步骤
+        return self.add_step(
+            name=name,
+            agent=agent_replica,
+            instance_id=instance_id,
+            input_key=input_key,
+            output_key=output_key,
+            result_type=result_type
+        )
+    
+    def add_parallel_replicas(
+        self,
+        name_prefix: str,
+        base_agent: Agent,
+        project_inputs: Dict[str, str],
+        output_key_prefix: Optional[str] = None
+    ) -> "Workflow":
+        """
+        为多个项目批量创建 agent 副本步骤
+        
+        Args:
+            name_prefix: 步骤名称前缀
+            base_agent: 基础 agent
+            project_inputs: {项目 ID: 输入内容}
+            output_key_prefix: 输出 key 前缀
+        
+        Returns:
+            Workflow 自身，支持链式调用
+        
+        示例:
+            workflow.add_parallel_replicas(
+                name_prefix="审查",
+                base_agent=reviewer_agent,
+                project_inputs={
+                    "project-A": "审查 /path/to/project-a",
+                    "project-B": "审查 /path/to/project-b"
+                },
+                output_key_prefix="review_"
+            )
+        """
+        for project_id, input_text in project_inputs.items():
+            step_name = f"{name_prefix}-{project_id}"
+            output_key = f"{output_key_prefix or 'result_'}{project_id}"
+            self.add_replica_step(
+                name=step_name,
+                base_agent=base_agent,
+                instance_id=project_id,
+                output_key=output_key
+            )
         return self
     
     def run(self, initial_input: str, verbose: bool = True, output_dir: Optional[str] = None) -> Dict:
@@ -352,6 +440,7 @@ class Workflow:
                 {
                     "name": s.name,
                     "agent": s.agent.to_dict(),  # 保存完整 Agent 定义
+                    "instance_id": s.instance_id,
                     "input_key": s.input_key,
                     "output_key": s.output_key,
                     "result_type": s.result_type.value
@@ -396,6 +485,7 @@ class Workflow:
             workflow.add_step(
                 name=step_data.get("name", "步骤"),
                 agent=agent,
+                instance_id=step_data.get("instance_id"),
                 input_key=step_data.get("input_key"),
                 output_key=step_data.get("output_key"),
                 result_type=ResultType(step_data.get("result_type", "auto"))
