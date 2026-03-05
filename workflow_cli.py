@@ -95,6 +95,8 @@ def interactive_mode(workflow=None):
 调试功能:
   在任务后添加 --debug 可将各步骤结果保存到文件
   例：检查 /tmp/code.py --debug
+  添加 --isolate 按实例 ID 隔离输出目录
+  例：审查项目 A,B,C --debug --isolate
 """)
         
         elif user_input == "/list":
@@ -199,14 +201,17 @@ def interactive_mode(workflow=None):
                 print()
                 # 检查是否有调试输出参数
                 import re
-                match = re.match(r'(.+?)\s+--debug(\s+(.+))?', user_input)
+                match = re.match(r'(.+?)\s+--debug(?:\s+(--isolate))?', user_input)
                 if match:
                     # 使用 debug 模式，输出到文件
                     task = match.group(1).strip()
+                    isolate = match.group(2) == '--isolate'
                     output_dir = f"./workflow_debug/{workflow.name}_{task[:20].replace('/', '_')}"
-                    result = workflow.run(task, output_dir=output_dir)
+                    result = workflow.run(task, output_dir=output_dir, isolate_by_instance=isolate)
                     print(f"\n结果：{result.get('_last_output', '完成')[:300]}")
                     print(f"\n[Debug] 各步骤结果已保存到：{output_dir}")
+                    if isolate:
+                        print(f"[Debug] 已按实例 ID 隔离到子目录")
                 else:
                     result = workflow.run(user_input)
                     print(f"\n结果：{result.get('_last_output', '完成')[:300]}")
@@ -227,6 +232,7 @@ def main():
     parser.add_argument("-v", "--verbose", action="store_true", default=True, help="详细输出")
     parser.add_argument("--debug", action="store_true", help="调试模式：将各步骤结果保存到文件")
     parser.add_argument("-o", "--output", help="输出目录（调试模式）")
+    parser.add_argument("--isolate", action="store_true", help="按实例 ID 隔离输出目录（每个 agent 副本独立子目录）")
     
     args = parser.parse_args()
     
@@ -245,10 +251,17 @@ def main():
             if args.debug or args.output:
                 output_dir = args.output or f"./workflow_debug/{workflow.name}_{args.task[:20].replace('/', '_')}"
             
-            result = workflow.run(args.task, verbose=args.verbose, output_dir=output_dir)
+            result = workflow.run(
+                args.task, 
+                verbose=args.verbose, 
+                output_dir=output_dir,
+                isolate_by_instance=args.isolate
+            )
             print(f"\n结果：{result.get('_last_output', '完成')[:300]}")
             if output_dir:
                 print(f"\n[Debug] 各步骤结果已保存到：{output_dir}")
+                if args.isolate:
+                    print(f"[Debug] 已按实例 ID 隔离到子目录")
         
         # 进入交互模式
         interactive_mode(workflow)

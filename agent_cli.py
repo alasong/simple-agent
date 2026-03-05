@@ -94,12 +94,14 @@ def interactive_mode(agent=None):
 /new <描述>       创建新 Agent
 /update <描述>    更新提示词
 /switch <名称>    切换 Agent
-/list             列出所有 Agent
+/list             列出所有 Agent (包括 builtin agents)
 /info             显示 Agent 信息
 /clear            清空记忆
 /save             保存 Agent (默认保存到 ./agents/)
-/load <名称>      加载 Agent
+/load <名称>      加载 Agent (支持 builtin agents)
 /exit             退出
+
+提示：/list 命令会显示已创建的 Agent、已保存的 Agent 和 Builtin Agents
 """)
         
         elif user_input == "/list":
@@ -118,6 +120,18 @@ def interactive_mode(agent=None):
                     print(f"\n已保存的 Agent ({len(files)} 个):")
                     for f in files:
                         print(f"  - {f}")
+            
+            # 列出 builtin agents
+            try:
+                from builtin_agents import list_available_agents, get_agent_info
+                builtin = list_available_agents()
+                if builtin:
+                    print(f"\nBuiltin Agents ({len(builtin)} 个):")
+                    for agent_type in builtin:
+                        info = get_agent_info(agent_type)
+                        print(f"  - {agent_type}: {info['name']} (v{info['version']})")
+            except ImportError:
+                pass
         
         elif user_input.startswith("/new "):
             desc = user_input[5:].strip()
@@ -216,9 +230,16 @@ def interactive_mode(agent=None):
             
             if os.path.exists(path):
                 current_agent = Agent.load(path)
-                print(f"\n已加载: {current_agent}")
+                print(f"已加载：{current_agent}")
             else:
-                print(f"\n未找到: {name}")
+                # Try to load builtin agent
+                try:
+                    from builtin_agents import get_agent
+                    current_agent = get_agent(name)
+                    print(f"已加载 Builtin Agent: {current_agent}")
+                except (ImportError, ValueError):
+                    print(f"未找到：{name}")
+                    print("提示：可以使用 /list 查看可用的 builtin agents")
         
         else:
             # 默认：创建并运行 或 运行任务

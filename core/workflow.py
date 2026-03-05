@@ -101,6 +101,8 @@ class WorkflowStep:
             print(f"\n{'='*50}")
             print(f"[Workflow] 步骤：{self.name}")
             print(f"[Workflow] Agent: {self.agent.name}")
+            if self.instance_id:
+                print(f"[Workflow] 实例 ID: {self.instance_id}")
             print(f"{'='*50}")
         
         result_text = self.agent.run(user_input, verbose=verbose)
@@ -179,14 +181,23 @@ class WorkflowStep:
     
     def _save_to_file(self, output_dir: str, step_index: int, result_text: str, step_result: StepResult):
         """保存步骤结果到文件"""
-        # 文件名格式：01_步骤名_output.txt
+        # 文件名格式：01_[instance_id_] 步骤名_output.txt
         safe_name = self.name.replace("/", "_").replace("\\", "_").replace(":", "_")
-        filename = f"{step_index:02d}_{safe_name}_output.txt"
+        
+        # 如果有 instance_id，添加到文件名中
+        if self.instance_id:
+            safe_instance = self.instance_id.replace("/", "_").replace("\\", "_").replace(":", "_")
+            filename = f"{step_index:02d}_{safe_instance}_{safe_name}_output.txt"
+        else:
+            filename = f"{step_index:02d}_{safe_name}_output.txt"
+        
         filepath = os.path.join(output_dir, filename)
         
         # 保存文本输出
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write(f"# Step: {self.name}\n")
+            if self.instance_id:
+                f.write(f"# Instance ID: {self.instance_id}\n")
             f.write(f"# Agent: {self.agent.name} (v{self.agent.version})\n")
             f.write(f"# Result Type: {step_result.type.value}\n")
             f.write("\n")
@@ -206,7 +217,10 @@ class WorkflowStep:
         
         # 如果是 JSON 结果，额外保存一个纯 JSON 文件
         if step_result.type == ResultType.JSON:
-            json_filename = f"{step_index:02d}_{safe_name}_data.json"
+            if self.instance_id:
+                json_filename = f"{step_index:02d}_{self.instance_id}_{safe_name}_data.json"
+            else:
+                json_filename = f"{step_index:02d}_{safe_name}_data.json"
             json_filepath = os.path.join(output_dir, json_filename)
             with open(json_filepath, 'w', encoding='utf-8') as f:
                 json.dump(step_result.content, f, ensure_ascii=False, indent=2)
@@ -269,7 +283,8 @@ class Workflow:
         instance_id: str,
         input_key: Optional[str] = None,
         output_key: Optional[str] = None,
-        result_type: ResultType = ResultType.AUTO
+        result_type: ResultType = ResultType.AUTO,
+        output_subdir: Optional[str] = None
     ) -> "Workflow":
         """
         基于现有 agent 创建一个副本步骤
@@ -281,6 +296,7 @@ class Workflow:
             input_key: 输入 key
             output_key: 输出 key
             result_type: 结果类型
+            output_subdir: 输出子目录（如果不指定，默认使用 instance_id）
         
         Returns:
             Workflow 自身，支持链式调用
@@ -347,7 +363,13 @@ class Workflow:
             )
         return self
     
-    def run(self, initial_input: str, verbose: bool = True, output_dir: Optional[str] = None) -> Dict:
+    def run(
+        self, 
+        initial_input: str, 
+        verbose: bool = True, 
+        output_dir: Optional[str] = None,
+        isolate_by_instance: bool = False
+    ) -> Dict:
         """
         执行工作流
         
@@ -355,6 +377,7 @@ class Workflow:
             initial_input: 初始输入
             verbose: 是否打印详细过程
             output_dir: 输出目录（如果指定，将各步骤结果保存到文件）
+            isolate_by_instance: 是否按 instance_id 隔离输出目录
         
         Returns:
             执行上下文（包含所有步骤的输出）
@@ -375,6 +398,8 @@ class Workflow:
                 f.write(initial_input)
             if verbose:
                 print(f"\n[Debug] 结果将保存到：{output_dir}")
+                if isolate_by_instance:
+                    print(f"[Debug] 已启用按实例隔离输出目录")
         
         if verbose:
             print(f"\n{'#'*50}")
@@ -383,6 +408,8 @@ class Workflow:
             print(f"# 共享上下文：{self.shared_memory}")
             if output_dir:
                 print(f"# 输出目录：{output_dir}")
+                if isolate_by_instance:
+                    print(f"# 隔离模式：按 instance_id 分离子目录")
             print(f"{'#'*50}")
         
         # 顺序执行所有步骤
@@ -396,12 +423,21 @@ class Workflow:
             if verbose:
                 print(f"\n[Workflow] 步骤 {i}/{len(self.steps)}")
             
+            # 确定输出目录
+            step_output_dir = output_dir
+            if isolate_by_instance and output_dir and step.instance_id:
+                # 为每个实例创建独立的子目录
+                step_output_dir = os.path.join(output_dir, step.instance_id)
+                os.makedirs(step_output_dir, exist_ok=True)
+                if verbose:
+                    print(f"[Workflow] 实例 {step.instance_id} 输出目录：{step_output_dir}")
+            
             # 执行步骤，传入输出目录
             self.context = step.run(
                 self.context, 
                 shared_memory=self.shared_memory,
                 verbose=verbose,
-                output_dir=output_dir,
+                output_dir=step_output_dir,
                 step_index=i
             )
         
@@ -410,6 +446,8 @@ class Workflow:
             print(f"# Workflow 完成")
             if output_dir:
                 print(f"# 结果已保存到：{output_dir}")
+                if isolate_by_instance:
+                    print(f"# 各实例输出已隔离到对应子目录")
             print(f"{'#'*50}")
         
         return self.context
