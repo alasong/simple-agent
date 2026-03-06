@@ -4,9 +4,10 @@
 directories:
   agents: "${AGENTS_DIR:./agents}"
   workflows: "${WORKFLOWS_DIR:./workflows}"
-  output: "${OUTPUT_DIR:./cli_output}"
+  output: "${OUTPUT_DIR:./output}"
+  output_root: "${OUTPUT_ROOT:./output}"
   sessions: "${SESSION_DIR:${HOME}/.simple-agent/sessions}"
-  reports: "${REPORTS_DIR:./reports}"
+  reports: "${REPORTS_DIR:./output/reports}"
 
 # Agent 默认配置
 agent:
