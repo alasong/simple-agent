@@ -95,42 +95,98 @@ class CLIAgent:
             max_iterations=15
         )
     
-    def _is_complex_task(self, user_input: str) -> bool:
-        """判断是否为复杂任务"""
-        complex_indicators = [
-            "多个", "流程", "工作流", "分解", "规划", "设计",
-            "先", "然后", "再", "最后", "步骤", "阶段",
-            "项目", "并行", "同时", "审查", "测试", "部署",
-            "架构", "文档", "CI/CD",
-            "分析", "研究", "调研", "趋势", "方案", "计划"
+    def _is_complex_task(self, user_input: str, verbose: bool = True) -> bool:
+        """
+        判断是否为复杂任务 - 采用两级判断策略
+        
+        第一级：快速规则过滤（明显的简单任务）
+        第二级：LLM 语义判断（不确定的任务）
+        """
+        # ========== 第一级：快速规则过滤 ==========
+        
+        # 空输入或极短输入视为简单任务
+        if not user_input or len(user_input.strip()) < 5:
+            if verbose:
+                print("[CLI Agent] 任务判断：极短输入 -> 简单任务")
+            return False
+        
+        # 明显的简单任务模式（直接返回，不调用 LLM）
+        simple_patterns = [
+            "你好", "您好", "hello", "hi",  # 问候
+            "谢谢", "感谢", "bye", "再见",  # 礼貌用语
+            "你是谁", "你能做什么", "介绍下",  # 基础问答
         ]
         
-        simple_indicators = [
-            "什么是", "为什么", "怎么", "如何", "解释", "说明",
-            "帮我写", "写一个", "函数", "代码",
-            "翻译", "计算", "转换"
+        for pattern in simple_patterns:
+            if pattern in user_input.lower():
+                if verbose:
+                    print(f"[CLI Agent] 任务判断：匹配简单模式 '{pattern}' -> 简单任务")
+                return False
+        
+        # 明显的复杂任务模式（多步骤、多条件）
+        complex_patterns = [
+            "工作流", "CI/CD", "部署流程", "测试流程",
         ]
         
-        # 检查是否有明显的复杂任务关键词
-        for indicator in complex_indicators:
-            if indicator in user_input:
-                # 但如果同时有简单关键词且任务很短，仍算简单
-                has_simple = any(s in user_input for s in simple_indicators)
-                if has_simple and len(user_input) < 30:
-                    continue
+        for pattern in complex_patterns:
+            if pattern in user_input:
+                if verbose:
+                    print(f"[CLI Agent] 任务判断：匹配复杂模式 '{pattern}' -> 复杂任务")
                 return True
         
-        # 检查是否是明显的简单任务
-        for indicator in simple_indicators:
-            if indicator in user_input:
-                if len(user_input) < 40:
-                    return False
+        # ========== 第二级：LLM 语义判断 ==========
         
-        # 默认：超过一定长度或有多个逗号分隔的任务算复杂
-        if len(user_input) > 80 or user_input.count(",") >= 2 or user_input.count(",") >= 2:
-            return True
+        if verbose:
+            print("[CLI Agent] 任务判断：规则无法确定，使用 LLM 判断...")
         
-        return False
+        return self._llm_judge_complexity(user_input, verbose)
+    
+    def _llm_judge_complexity(self, user_input: str, verbose: bool = True) -> bool:
+        """
+        使用 LLM 判断任务复杂度
+        
+        Returns:
+            True: 复杂任务（需要规划）
+            False: 简单任务（直接处理）
+        """
+        prompt = f"""你是一个任务复杂度分类器。请判断以下用户输入是否需要多步规划和复杂推理：
+
+用户输入：{user_input}
+
+判断标准：
+- 简单任务：单一问题、概念解释、代码片段、翻译、计算、信息查询
+- 复杂任务：需要多步骤、多工具协作、系统设计、流程规划、分析研究
+
+请只回答一个词：simple 或 complex"""
+
+        try:
+            # 构建消息格式用于 LLM 调用
+            messages = [
+                {"role": "user", "content": prompt}
+            ]
+            response = self.llm.chat(messages)
+            result = (response.get("content") or "").strip().lower()
+            
+            # 解析结果
+            is_complex = "complex" in result
+            
+            if verbose:
+                reason = "复杂任务" if is_complex else "简单任务"
+                print(f"[CLI Agent] LLM 判断结果：{reason} (原始响应：{result})")
+            
+            return is_complex
+            
+        except Exception as e:
+            # LLM 判断失败时，降级使用长度启发式
+            if verbose:
+                print(f"[CLI Agent] LLM 判断失败：{e}，降级使用规则判断")
+            
+            # 降级规则
+            if len(user_input) > 100:
+                return True
+            if user_input.count(",") >= 2 or user_input.count(";") >= 2:
+                return True
+            return False
     
     def execute(self, user_input: str, verbose: bool = True, 
                 output_dir: Optional[str] = None, isolate_by_instance: bool = False) -> Any:
@@ -146,8 +202,8 @@ class CLIAgent:
         Returns:
             执行结果
         """
-        # 1. 判断任务复杂度
-        is_complex = self._is_complex_task(user_input)
+        # 1. 判断任务复杂度（LLM 判断会在内部打印详情）
+        is_complex = self._is_complex_task(user_input, verbose)
         
         if verbose:
             print(f"\n[CLI Agent] 任务复杂度：{'复杂' if is_complex else '简单'}")
