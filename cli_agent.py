@@ -165,15 +165,19 @@ class CLIAgent:
             print(f"\n[CLI Agent] 使用 CLI Agent 处理简单任务...")
         
         # 检测是否需要实时信息
+        date_keywords = ["今天", "日期", "几号", "星期", "时间", "现在几点"]
         realtime_keywords = [
-            "天气", "气温", "下雨", "刮风", "雾霾", "空气质量",
-            "新闻", "头条", "最新", "今天", "现在", "当前",
-            "股价", "比分", "排名", "热搜", "疫情"
+            "新闻", "头条", "最新", "股价", "比分", "排名", "热搜", "疫情"
         ]
+        weather_keywords = ["天气", "气温", "下雨", "刮风", "雾霾", "空气质量"]
         
-        # 如果查询包含实时信息关键词，添加明确指示
+        # 如果查询包含日期关键词，使用 GetCurrentDateTool
         enhanced_input = user_input
-        if any(kw in user_input for kw in realtime_keywords):
+        if any(kw in user_input for kw in date_keywords):
+            enhanced_input = f"{user_input}（请使用 GetCurrentDateTool 获取当前日期）"
+        elif any(kw in user_input for kw in weather_keywords):
+            enhanced_input = f"{user_input}（请使用 WebSearchTool 搜索，设置 fetch_content=true 获取详细天气信息）"
+        elif any(kw in user_input for kw in realtime_keywords):
             enhanced_input = f"{user_input}（请使用 WebSearchTool 搜索获取最新信息）"
         
         result = self.agent.run(enhanced_input, verbose=verbose)

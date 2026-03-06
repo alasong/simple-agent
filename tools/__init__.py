@@ -9,6 +9,7 @@ from .file import ReadFileTool, WriteFileTool
 from .check import CheckFileExistsTool, CheckContentTool, CheckPythonSyntaxTool
 from .agent_tools import InvokeAgentTool, CreateWorkflowTool, ListAgentsTool
 from .web_search_tool import WebSearchTool
+from .get_date_tool import GetCurrentDateTool
 
 __all__ = [
     "ReadFileTool",
@@ -20,4 +21,5 @@ __all__ = [
     "CreateWorkflowTool",
     "ListAgentsTool",
     "WebSearchTool",
+    "GetCurrentDateTool",
 ]

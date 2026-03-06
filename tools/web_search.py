@@ -2,12 +2,15 @@
 Web Search - 网络搜索功能实现
 
 提供互联网搜索能力，支持多种搜索源
+增强功能：支持网页内容自动抓取
 """
 
 import os
+import re
 import requests
 from typing import Optional, List
 from dataclasses import dataclass
+from bs4 import BeautifulSoup
 
 
 @dataclass
@@ -30,7 +33,9 @@ def WebSearch(
     query: str,
     allowed_domains: Optional[List[str]] = None,
     blocked_domains: Optional[List[str]] = None,
-    num_results: int = 10
+    num_results: int = 10,
+    fetch_content: bool = False,
+    content_max_length: int = 3000
 ) -> SearchResults:
     """
     执行网络搜索
@@ -40,6 +45,8 @@ def WebSearch(
         allowed_domains: 可选，只从这些域名获取结果
         blocked_domains: 可选，排除这些域名的结果
         num_results: 返回结果数量
+        fetch_content: 是否自动抓取第一个结果的网页内容
+        content_max_length: 抓取内容的最大长度
     
     Returns:
         SearchResults 对象
@@ -54,14 +61,26 @@ def WebSearch(
     
     # 优先使用 Bing API
     if bing_api_key:
-        return _bing_search(query, bing_api_key, allowed_domains, blocked_domains, num_results)
-    
+        results = _bing_search(query, bing_api_key, allowed_domains, blocked_domains, num_results)
     # 其次使用 Google Custom Search
-    if google_api_key and google_cse_id:
-        return _google_search(query, google_api_key, google_cse_id, allowed_domains, blocked_domains, num_results)
-    
+    elif google_api_key and google_cse_id:
+        results = _google_search(query, google_api_key, google_cse_id, allowed_domains, blocked_domains, num_results)
     # 回退到 DuckDuckGo HTML 搜索（无需 API）
-    return _duckduckgo_search(query, allowed_domains, blocked_domains, num_results)
+    else:
+        results = _duckduckgo_search(query, allowed_domains, blocked_domains, num_results)
+    
+    # 如果需要抓取网页内容
+    if fetch_content and results.search_results:
+        # 获取第一个结果的 URL
+        first_result = results.search_results[0]
+        if first_result.url:
+            # 抓取网页内容并添加到 snippet 中
+            content = fetch_webpage_content(first_result.url, content_max_length)
+            if content and not content.startswith("抓取") and not content.startswith("解析"):
+                # 将网页内容添加到第一个结果的 snippet 前面
+                first_result.snippet = f"[网页内容] {content}\n\n[原始摘要] {first_result.snippet}"
+    
+    return results
 
 
 def _bing_search(
@@ -216,6 +235,81 @@ def _duckduckgo_search(
         search_results=results,
         total_results=len(results)
     )
+
+
+def fetch_webpage_content(url: str, max_length: int = 3000) -> str:
+    """
+    抓取网页内容并提取主要文本
+    
+    Args:
+        url: 网页 URL
+        max_length: 返回内容最大长度
+    
+    Returns:
+        提取的网页主要内容
+    """
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    }
+    
+    try:
+        response = requests.get(url, headers=headers, timeout=10, verify=True)
+        response.raise_for_status()
+        response.encoding = response.apparent_encoding
+        
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # 移除不需要的元素
+        for element in soup(['script', 'style', 'nav', 'footer', 'header', 'aside']):
+            element.decompose()
+        
+        # 尝试提取主要内容
+        main_content = None
+        
+        # 1. 尝试提取 <main> 标签
+        main_tag = soup.find('main')
+        if main_tag:
+            main_content = main_tag
+        
+        # 2. 尝试提取 article 标签
+        if not main_content:
+            article_tag = soup.find('article')
+            if article_tag:
+                main_content = article_tag
+        
+        # 3. 尝试提取具有主要内容的 div（通过 class 名）
+        if not main_content:
+            content_classes = ['content', 'main', 'article', 'post', 'entry', 'text']
+            for class_name in content_classes:
+                content_div = soup.find('div', class_=lambda x: x and class_name in x.lower())
+                if content_div and len(content_div.get_text(strip=True)) > 200:
+                    main_content = content_div
+                    break
+        
+        # 4. 如果没有找到主要内容区域，使用 body
+        if not main_content:
+            body_tag = soup.find('body')
+            if body_tag:
+                main_content = body_tag
+            else:
+                main_content = soup
+        
+        # 提取文本并清理
+        text = main_content.get_text(separator='\n', strip=True)
+        
+        # 清理多余空行
+        text = re.sub(r'\n{3,}', '\n\n', text)
+        
+        # 限制长度
+        if len(text) > max_length:
+            text = text[:max_length] + "\n\n...(内容过长，已截断)"
+        
+        return text if text else "未能提取到网页内容"
+        
+    except requests.RequestException as e:
+        return f"抓取网页失败：{str(e)}"
+    except Exception as e:
+        return f"解析网页失败：{str(e)}"
 
 
 # 便捷函数：直接搜索并返回格式化文本
