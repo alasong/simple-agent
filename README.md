@@ -1,76 +1,104 @@
-# Todo管理软件
+# AI驱动股市热点分析工具
 
-一款简洁高效的个人任务管理工具，帮助您更好地组织和跟踪待办事项。
+一个集成固态电池、半导体设备、AI算力三个前沿科技领域的实时数据分析和智能评估系统。
 
-## 项目简介
+## 功能特点
 
-这个Todo管理软件旨在提供一个简单易用的界面，让用户能够轻松管理日常任务和待办事项。软件支持任务的基本操作，包括添加、编辑、删除和标记完成，同时还提供了优先级设置、截止日期、分类等功能。
-
-## 功能特性
-
-- ✅ 添加、编辑、删除待办事项
-- ✅ 标记任务为完成状态
-- ✅ 设置任务优先级（高/中/低）
-- ✅ 设置任务截止日期
-- ✅ 任务分类管理
-- ✅ 搜索和过滤功能
-- ✅ 数据持久化存储
-- ✅ 简洁友好的用户界面
+- **多维度数据整合**: 结合股价、交易量、新闻情绪等多源数据
+- **智能分析引擎**: 计算趋势、动量、情绪、波动等多项指标
+- **实时监控**: 对三大热点行业进行持续跟踪分析
+- **可视化报告**: 生成详细的HTML、JSON格式分析报告
+- **投资建议**: 基于数据分析提供投资策略建议
 
 ## 技术架构
 
-- **编程语言**: Python 3.7+
-- **GUI框架**: Tkinter
-- **数据存储**: JSON文件
-- **架构模式**: MVC (Model-View-Controller)
+- **数据获取层**: 通过API获取实时股价和新闻数据
+- **分析引擎**: 多维度评分算法，综合评估各行业状况
+- **报告生成**: HTML可视化界面与JSON数据接口
+- **配置管理**: 支持灵活的行业和股票配置
 
-## 安装与运行
+## 安装依赖
 
-### 环境要求
-- Python 3.7或更高版本
-
-### 安装步骤
-1. 克隆项目到本地
-2. 确保已安装Python 3.7+
-3. 直接运行主程序文件
-
-### 运行方式
 ```bash
-python main.py
+pip install -r requirements.txt
 ```
 
-## 项目结构
+或直接安装：
 
-```
-todo_app/
-├── src/                    # 源代码目录
-│   ├── models/            # 数据模型
-│   ├── views/             # 用户界面
-│   ├── controllers/       # 控制器逻辑
-│   └── utils/             # 工具函数
-├── data/                  # 数据存储目录
-├── config/                # 配置文件目录
-├── tests/                 # 测试文件目录
-├── docs/                  # 文档目录
-├── requirements.txt       # 依赖包列表
-├── README.md              # 项目说明
-├── todo_requirements.md   # 需求文档
-├── technical_specification.md  # 技术规格书
-└── development_plan.md    # 开发计划
+```bash
+pip install -e .
 ```
 
-## 开发计划
+## 使用方法
 
-项目分为四个主要阶段：
-1. **项目准备与设计** (第1周): 完成需求和技术设计
-2. **核心功能开发** (第2-4周): 实现MVP版本
-3. **功能增强** (第5-6周): 添加高级功能
-4. **测试与发布** (第7-8周): 完成测试并发布
+### 命令行使用
 
-## 贡献指南
+```bash
+# 运行完整分析，默认输出到./reports目录
+python -m stock_analyzer.app
 
-欢迎提交Issue和Pull Request来改进这个项目！
+# 指定输出目录
+python -m stock_analyzer.app --output-dir ./my_reports
+
+# 仅生成JSON格式报告
+python -m stock_analyzer.app --format json
+
+# 显示详细日志
+python -m stock_analyzer.app --verbose
+```
+
+### 作为模块使用
+
+```python
+from stock_analyzer.app import StockAnalysisApp
+
+app = StockAnalysisApp()
+analysis_results, market_insight = app.run_analysis()
+app.save_reports(analysis_results, market_insight, './my_reports')
+```
+
+## 配置说明
+
+在 `stock_analyzer/config.py` 中可以配置：
+
+- 各行业关键词
+- 相关股票列表
+- API端点设置
+- 分析参数
+
+## 输出示例
+
+工具会生成以下类型的输出：
+
+- **HTML报告**: 包含可视化图表和详细分析的网页
+- **JSON数据**: 结构化数据，便于进一步处理
+- **PNG图表**: 可视化指标对比图
+
+## 数据模型
+
+- `StockData`: 股票基础数据
+- `NewsArticle`: 新闻文章数据
+- `AnalysisResult`: 单个行业的分析结果
+- `MarketInsight`: 整体市场洞察
+
+## API配置
+
+需要在环境变量中设置：
+
+- `ALPHA_VANTAGE_API_KEY`: 股价数据API密钥
+- `NEWS_API_KEY`: 新闻数据API密钥
+
+## 注意事项
+
+1. 本工具仅供学习和研究使用，不构成投资建议
+2. 实际部署时需要有效的API密钥
+3. 请遵守相关API的使用频率限制
+4. 数据准确性取决于第三方API提供商
+
+## 扩展性
+
+系统设计具有良好的扩展性，可轻松添加新的行业或调整分析算法。
 
 ## 许可证
 
-此项目仅供学习和参考使用。
+MIT License

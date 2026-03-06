@@ -12,6 +12,14 @@ from typing import Optional, List
 from dataclasses import dataclass
 from bs4 import BeautifulSoup
 
+from core.config_loader import get_config
+
+
+def _get_api_endpoint(service: str) -> str:
+    """从配置获取 API 端点"""
+    config = get_config()
+    return config.get(f'apis.search.{service}.endpoint', '')
+
 
 @dataclass
 class SearchResult:
@@ -91,7 +99,7 @@ def _bing_search(
     num_results: int = 10
 ) -> SearchResults:
     """使用 Bing Search API"""
-    endpoint = "https://api.bing.microsoft.com/v7.0/search"
+    endpoint = _get_api_endpoint('bing') or "https://api.bing.microsoft.com/v7.0/search"
     
     # 构建查询
     search_query = query
@@ -136,7 +144,7 @@ def _google_search(
     num_results: int = 10
 ) -> SearchResults:
     """使用 Google Custom Search API"""
-    endpoint = "https://www.googleapis.com/customsearch/v1"
+    endpoint = _get_api_endpoint('google') or "https://www.googleapis.com/customsearch/v1"
     
     # 构建查询
     search_query = query
@@ -198,9 +206,11 @@ def _duckduckgo_search(
             search_query = f"{search_query} -site:{domain}"
     
     # DuckDuckGo HTML 搜索
-    url = "https://html.duckduckgo.com/html/"
+    url = _get_api_endpoint('duckduckgo') or "https://html.duckduckgo.com/html/"
     data = {"q": search_query}
-    headers = {"User-Agent": "Mozilla/5.0"}
+    config = get_config()
+    user_agent = config.get('user_agent', 'Mozilla/5.0')
+    headers = {"User-Agent": user_agent}
     
     response = requests.post(url, data=data, headers=headers, timeout=10)
     response.raise_for_status()
@@ -248,8 +258,10 @@ def fetch_webpage_content(url: str, max_length: int = 3000) -> str:
     Returns:
         提取的网页主要内容
     """
+    config = get_config()
+    user_agent = config.get('user_agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36')
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        "User-Agent": user_agent
     }
     
     try:

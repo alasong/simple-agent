@@ -3,15 +3,7 @@ Builtin Agents - 预定义的专业 Agent
 
 基于统一的 Agent 配置框架，从 YAML 配置文件加载
 
-可用的 Agent:
-- developer: 开发工程师（代码编写、功能实现）
-- reviewer: 代码审查员（质量检查、代码审查）
-- tester: 测试工程师（测试用例、执行测试）
-- architect: 架构师（技术设计、架构规划）
-- documenter: 文档工程师（文档编写、整理）
-- deployer: 部署工程师（部署配置、CI/CD）
-- planner: 任务规划师（任务分解、工作流创建）
-- cli: CLI 入口 Agent
+可用 Agent 通过 list_available_agents() 获取，或查看 config/ 目录。
 """
 
 # 先导入工具模块，确保工具注册到资源仓库
@@ -90,6 +82,11 @@ def create_builtin_agent(agent_type: str, llm: Optional[OpenAILLM] = None) -> Ag
             print(f"[Warning] 未找到工具：{tool_name}")
     
     # 创建 Agent
+    # 从统一配置加载默认 max_iterations
+    from core.config_loader import get_config
+    _config = get_config()
+    default_max_iter = _config.get('agent.max_iterations', 10)
+    
     agent = Agent(
         llm=llm or OpenAILLM(),
         tools=tools,
@@ -97,7 +94,7 @@ def create_builtin_agent(agent_type: str, llm: Optional[OpenAILLM] = None) -> Ag
         name=config.get("name", f"{agent_type.capitalize()} Agent"),
         version=config.get("version", "1.0.0"),
         description=config.get("description", ""),
-        max_iterations=config.get("max_iterations", 10)
+        max_iterations=config.get("max_iterations", default_max_iter)
     )
     
     return agent
@@ -159,6 +156,10 @@ def get_agent_info(agent_type: str) -> dict:
     Returns:
         agent 信息字典
     """
+    from core.config_loader import get_config
+    _config = get_config()
+    default_max_iter = _config.get('agent.max_iterations', 10)
+    
     config = _load_agent_config(agent_type)
     return {
         "type": agent_type,
@@ -166,7 +167,7 @@ def get_agent_info(agent_type: str) -> dict:
         "version": config.get("version", ""),
         "description": config.get("description", ""),
         "tools": config.get("tools", []),
-        "max_iterations": config.get("max_iterations", 10)
+        "max_iterations": config.get("max_iterations", default_max_iter)
     }
 
 

@@ -1,0 +1,31 @@
+# 通用设置配置文件
+
+# 目录配置
+directories:
+  agents: "${AGENTS_DIR:./agents}"
+  workflows: "${WORKFLOWS_DIR:./workflows}"
+  output: "${OUTPUT_DIR:./cli_output}"
+  sessions: "${SESSION_DIR:${HOME}/.simple-agent/sessions}"
+  reports: "${REPORTS_DIR:./reports}"
+
+# Agent 默认配置
+agent:
+  max_iterations: ${MAX_ITERATIONS:10}
+  cli_max_iterations: ${CLI_MAX_ITERATIONS:5}
+  planner_max_iterations: ${PLANNER_MAX_ITERATIONS:15}
+
+# LLM 配置
+llm:
+  default_model: "${OPENAI_MODEL:gpt-4o-mini}"
+  api_base: "${OPENAI_API_BASE:https://api.openai.com/v1}"
+
+# API Keys (通过环境变量配置，无默认值)
+api_keys:
+  openai: "${OPENAI_API_KEY}"
+  alpha_vantage: "${ALPHA_VANTAGE_API_KEY}"
+  news_api: "${NEWS_API_KEY}"
+  bing_search: "${BING_SEARCH_API_KEY}"
+  google_search: "${GOOGLE_SEARCH_API_KEY}"
+
+# User Agent
+user_agent: "${USER_AGENT:SimpleAgent/1.0}"

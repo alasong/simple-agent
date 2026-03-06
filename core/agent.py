@@ -67,15 +67,20 @@ class Agent:
         name: str = "Agent",
         version: str = "1.0.0",
         description: str = "",
-        max_iterations: int = 10,
+        max_iterations: int = None,
         created_at: Optional[str] = None,
         instance_id: Optional[str] = None
     ):
+        # 从配置加载默认值
+        from .config_loader import get_config
+        _config = get_config()
+        default_max_iter = _config.get('agent.max_iterations', 10)
+        
         self.llm = llm
         self.name = name
         self.version = version
         self.description = description
-        self.max_iterations = max_iterations
+        self.max_iterations = max_iterations if max_iterations is not None else default_max_iter
         self.created_at = created_at or datetime.now().isoformat()
         self.instance_id = instance_id  # 实例标识，用于区分同一 agent 的不同副本
         self.memory = Memory(system_prompt)

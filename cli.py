@@ -34,10 +34,12 @@ cli_agent = None
 # 当前手动管理的 Agent（单 Agent 模式）
 current_agent = None
 
-# 默认保存目录
-AGENTS_DIR = "./agents"
-WORKFLOWS_DIR = "./workflows"
-OUTPUT_DIR = "./cli_output"
+# 默认保存目录（从统一配置加载）
+from core.config_loader import get_config
+_config = get_config()
+AGENTS_DIR = _config.get('directories.agents', './agents')
+WORKFLOWS_DIR = _config.get('directories.workflows', './workflows')
+OUTPUT_DIR = _config.get('directories.output', './cli_output')
 
 
 def setup_readline():

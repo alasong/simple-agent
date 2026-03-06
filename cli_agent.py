@@ -17,6 +17,7 @@ from typing import Optional, Any
 import tools  # noqa: F401
 
 from core.llm import OpenAILLM
+from core.config_loader import get_config
 
 
 class CLIAgent:
@@ -31,6 +32,7 @@ class CLIAgent:
         self.llm = llm or OpenAILLM()
         self._agent = None  # CLI Agent 实例
         self._planner = None  # Planner Agent，延迟加载
+        self._config = get_config()
     
     def _init_session_memory(self):
         """初始化会话记忆"""
@@ -57,12 +59,13 @@ class CLIAgent:
     def _create_fallback_agent(self):
         """创建临时 CLI Agent（当配置不存在时）"""
         from core.agent import Agent
+        max_iter = self._config.get('agent.cli_max_iterations', 5)
         return Agent(
             llm=self.llm,
             name="CLI Agent",
             description="用户交互入口",
             system_prompt="你是 CLI Agent，负责判断任务复杂度并分发。",
-            max_iterations=5
+            max_iterations=max_iter
         )
     
     def _get_planner(self):
@@ -78,6 +81,7 @@ class CLIAgent:
     def _create_fallback_planner(self):
         """创建临时 Planner Agent"""
         from core.agent import Agent
+        max_iter = self._config.get('agent.planner_max_iterations', 15)
         return Agent(
             llm=self.llm,
             name="Planner Agent",
@@ -92,7 +96,7 @@ class CLIAgent:
 - InvokeAgentTool: 调用其他 Agent
 - CreateWorkflowTool: 创建工作流
 - ListAgentsTool: 查看可用的 Agent 列表""",
-            max_iterations=15
+            max_iterations=max_iter
         )
     
     def _is_complex_task(self, user_input: str, verbose: bool = True) -> bool:

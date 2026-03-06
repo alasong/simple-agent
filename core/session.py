@@ -22,18 +22,26 @@ from datetime import datetime
 from typing import Optional, List, Dict
 
 
+from core.config_loader import get_config
+
 class SessionManager:
     """会话管理器 - 管理多个会话的持久化"""
     
     def __init__(self, storage_dir: Optional[str] = None):
         """
         Args:
-            storage_dir: 存储目录，默认 ~/.simple-agent/sessions/
+            storage_dir: 存储目录，默认从配置文件加载
         """
         if storage_dir:
             self.storage_dir = Path(storage_dir)
         else:
-            self.storage_dir = Path.home() / ".simple-agent" / "sessions"
+            # 从统一配置加载
+            config = get_config()
+            session_dir = config.get('directories.sessions', '')
+            if session_dir:
+                self.storage_dir = Path(session_dir)
+            else:
+                self.storage_dir = Path.home() / ".simple-agent" / "sessions"
         
         self.storage_dir.mkdir(parents=True, exist_ok=True)
         self.current_session: Optional[str] = None

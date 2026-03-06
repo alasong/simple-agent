@@ -1,0 +1,11 @@
+# API 端点配置
+
+search:
+  bing:
+    endpoint: "https://api.bing.microsoft.com/v7.0/search"
+  google:
+    endpoint: "https://www.googleapis.com/customsearch/v1"
+  duckduckgo:
+    endpoint: "https://html.duckduckgo.com/html/"
+
+# 可根据需要添加更多 API 端点
