@@ -1,27 +1,46 @@
 # Simple Agent - 智能 Agent 系统
 
-一个灵活的、可扩展的智能 Agent 系统，支持自定义 Agent 和工作流创建。
+一个灵活的、可扩展的智能 Agent 系统，支持自定义 Agent 创建、工作流自动化和多 Agent 协作。
 
 ## 功能特点
 
-- **多 Agent 协作**: 支持多个专业 Agent 协同工作
-- **工作流创建**: 可创建工作流自动化复杂任务
-- **工具扩展**: 丰富的工具集，支持自定义工具
-- **会话管理**: 自动保存和恢复会话状态
+- **多 Agent 协作**: 支持多个专业 Agent 协同工作，自动任务分发和协调
+- **工作流创建**: 定义 Agent 执行顺序，支持条件分支、循环和错误处理
+- **工具扩展**: 丰富的内置工具集，支持自定义工具开发和自动注册
+- **会话管理**: 自动保存和恢复会话状态，支持历史会话追踪
 - **配置驱动**: 通过 YAML 配置文件管理所有设置
-- **环境变量支持**: 灵活的配置管理
+- **环境变量支持**: 灵活的配置管理和动态重载
 
 ## 技术架构
 
-- **核心框架**: Agent、Tool、LLM 统一抽象接口
-- **资源仓库**: 集中管理工具和 Agent 注册
-- **配置系统**: YAML 配置 + 环境变量
-- **工具系统**: 文件操作、Web 搜索、Agent 调用等
-- **会话管理**: 持久化存储和历史追踪
+### 核心组件
 
-## 安装依赖
+- **核心框架 (core/)**: Agent 基类、Tool 接口、LLM 抽象、会话管理、配置加载器、资源仓库
+- **内置 Agents (builtin_agents/)**: CLI、Planner、Developer、Reviewer、Tester Agent
+- **工具系统 (tools/)**: 文件操作、Web 搜索、Agent 调用、工作流工具等
+- **配置系统 (config/)**: settings.yaml、apis.yaml、Agent 配置文件
+
+### 技术栈
+
+- Python 3.7+
+- OpenAI API / 兼容 API
+- YAML 配置
+- 异步执行支持
+
+## 安装部署
+
+### 环境准备
 
 ```bash
+# 克隆项目
+git clone <repository-url>
+cd simple-agent
+
+# 创建虚拟环境
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+
+# 安装依赖
 pip install -r requirements.txt
 ```
 
@@ -29,6 +48,22 @@ pip install -r requirements.txt
 
 ```bash
 pip install -e .
+```
+
+### API 配置
+
+在使用前配置 API 密钥：
+
+```bash
+export OPENAI_API_KEY="your_openai_api_key"
+export BING_SEARCH_API_KEY="your_bing_api_key"
+```
+
+或者创建 `.env` 文件：
+
+```
+OPENAI_API_KEY=your_openai_api_key
+BING_SEARCH_API_KEY=your_bing_api_key
 ```
 
 ## 快速开始
@@ -69,36 +104,91 @@ planner_agent = create_builtin_agent("planner")
 - `apis.yaml`: API 端点配置
 - `builtin_agents/configs/`: Agent 配置
 
+### settings.yaml 示例
+
+```yaml
+directories:
+  agents: "./agents"
+  workflows: "./workflows"
+  output: "./cli_output"
+  sessions: "${HOME}/.simple-agent/sessions"
+
+agent:
+  max_iterations: 10
+
+llm:
+  default_model: "gpt-4o-mini"
+  api_base: "https://api.openai.com/v1"
+```
+
+### apis.yaml 示例
+
+```yaml
+bing_search:
+  url: "https://api.bing.microsoft.com/v7.0/search"
+
+google_search:
+  url: "https://customsearch.googleapis.com/customsearch/v1"
+```
+
 环境变量配置：
 
 - `OPENAI_API_KEY`: OpenAI API 密钥
 - `BING_SEARCH_API_KEY`: Bing 搜索 API 密钥
-- 其他配置参见 `config/settings.yaml`
+- `OUTPUT_DIR`: 自定义输出目录
 
 ## 内置 Agent
 
-- **CLI Agent**: 用户交互入口，处理简单问题和任务分发
-- **Planner Agent**: 复杂任务规划和协调
-- **Developer Agent**: 代码开发和实现
-- **Reviewer Agent**: 代码审查
-- **Tester Agent**: 测试生成
+### CLI Agent
+- 用户交互入口，处理简单问题和任务分发
+- 工具：WebSearchTool, GetCurrentDateTool, ExplainReasonTool, SupplementTool
+
+### Planner Agent
+- 复杂任务规划、多 Agent 协调、任务分解和分配
+
+### Developer Agent
+- 代码开发和实现、代码审查和修改、文档编写
+
+### Reviewer Agent
+- 代码质量检查、最佳实践验证、改进建议
+
+### Tester Agent
+- 测试用例生成、单元测试编写、集成测试设计
 
 ## 工具系统
 
 ### 内置工具
 
-- `ReadFileTool` / `WriteFileTool`: 文件读写
-- `WebSearchTool`: Web 搜索
-- `GetCurrentDateTool`: 获取当前时间
-- `InvokeAgentTool`: 调用其他 Agent
-- `CreateWorkflowTool`: 创建工作流
-- `ListAgentsTool`: 列出可用 Agent
-- `ExplainReasonTool`: 解释原因
-- `SupplementTool`: 补充说明
+- **文件操作**: `ReadFileTool`, `WriteFileTool`
+- **检查工具**: `CheckFileExistsTool`, `CheckContentTool`, `CheckPythonSyntaxTool`
+- **Agent 工具**: `InvokeAgentTool`, `CreateWorkflowTool`, `ListAgentsTool`
+- **搜索工具**: `WebSearchTool`
+- **时间工具**: `GetCurrentDateTool`
+- **补充工具**: `ExplainReasonTool`, `SupplementTool`
+- **输出管理**: `OutputManagerTool`
 
 ### 自定义工具
 
-可以通过实现 `BaseTool` 接口创建自定义工具。
+```python
+from core import BaseTool, ToolResult
+
+class MyCustomTool(BaseTool):
+    @property
+    def name(self) -> str:
+        return "MyCustomTool"
+    
+    @property
+    def description(self) -> str:
+        return "我的自定义工具描述"
+    
+    @property
+    def parameters(self) -> dict:
+        return {...}
+    
+    def execute(self, **kwargs) -> ToolResult:
+        # 实现工具逻辑
+        return ToolResult(success=True, output="结果")
+```
 
 ## 自定义 Agent
 
@@ -122,20 +212,92 @@ domains:
 
 会话自动保存到 `~/.simple-agent/sessions/` 目录。
 
-## 注意事项
+会话文件包含：
+- 对话历史
+- Agent 状态
+- 工具使用记录
+- 上下文信息
 
-1. 首次使用需要配置 API 密钥
-2. 确保环境变量正确设置
-3. 工作流和 Agent 配置保存在本地
+## 输出管理
+
+任务执行结果按日期和项目分类保存在根目录的 `output/` 目录。
+
+### 目录结构
+
+```
+output/
+├── 2026-03-06/
+│   ├── stock_analysis/
+│   │   ├── analysis_result.txt
+│   │   └── market_report.md
+│   └── code_review/
+│       └── review_summary.txt
+├── 2026-03-07/
+│   └── unclassified/
+│       └── task_143052.txt
+└── 2026-03-08/
+    └── research/
+        └── findings.json
+```
+
+### OutputManagerTool 参数
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| project | string | 否 | 项目名称，用于创建子目录 |
+| filename | string | 否 | 文件名（不含路径） |
+| content | string | 否 | 要保存的内容 |
+| file_type | string | 否 | 文件类型：txt/md/json/log，默认 txt |
+
+### 查找输出文件
+
+```bash
+# 查看今天的输出
+ls output/$(date +%Y-%m-%d)/
+
+# 查找特定项目的输出
+find output/ -type d -name "stock_analysis"
+
+# 查找所有 Markdown 文件
+find output/ -name "*.md" -type f
+```
+
+### 最佳实践
+
+- 为相关任务使用相同的项目名，便于查找
+- 使用描述性的文件名
+- 根据内容选择合适的文件类型（md/txt/json/log）
+- 按日期自动分类便于定期整理和归档
+
+## 最佳实践
+
+1. **Agent 设计**: 每个 Agent 专注于单一职责
+2. **工具开发**: 保持工具原子性和可组合性
+3. **配置管理**: 使用环境变量管理敏感信息
+4. **会话恢复**: 定期保存重要会话状态
+
+## 故障排除
+
+### 常见问题
+
+1. **工具未找到**: 确保工具已正确注册到资源仓库
+2. **配置加载失败**: 检查 YAML 文件格式和环境变量
+3. **会话保存失败**: 确认存储目录权限和路径
 
 ## 扩展性
 
 系统设计具有良好的扩展性：
 
-- 添加新的自定义 Agent
-- 开发专用工具
-- 创建工作流模板
-- 集成外部服务
+- **添加 Agent**: 在 `custom_agents/` 创建 YAML 配置
+- **开发工具**: 实现 `BaseTool` 接口
+- **工作流模板**: 定义复杂执行流程
+- **集成服务**: 通过工具调用外部 API
+
+## 注意事项
+
+1. 首次使用需要配置 API 密钥
+2. 确保环境变量正确设置
+3. 工作流和 Agent 配置保存在本地
 
 ## 许可证
 
