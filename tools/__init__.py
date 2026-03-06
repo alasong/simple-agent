@@ -7,6 +7,8 @@
 # 导入即注册
 from .file import ReadFileTool, WriteFileTool
 from .check import CheckFileExistsTool, CheckContentTool, CheckPythonSyntaxTool
+from .agent_tools import InvokeAgentTool, CreateWorkflowTool, ListAgentsTool
+from .web_search_tool import WebSearchTool
 
 __all__ = [
     "ReadFileTool",
@@ -14,4 +16,8 @@ __all__ = [
     "CheckFileExistsTool",
     "CheckContentTool",
     "CheckPythonSyntaxTool",
+    "InvokeAgentTool",
+    "CreateWorkflowTool",
+    "ListAgentsTool",
+    "WebSearchTool",
 ]

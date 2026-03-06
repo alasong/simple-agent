@@ -10,7 +10,12 @@ Builtin Agents - 预定义的专业 Agent
 - architect: 架构师（技术设计、架构规划）
 - documenter: 文档工程师（文档编写、整理）
 - deployer: 部署工程师（部署配置、CI/CD）
+- planner: 任务规划师（任务分解、工作流创建）
+- cli: CLI 入口 Agent
 """
+
+# 先导入工具模块，确保工具注册到资源仓库
+import tools  # noqa: F401
 
 import os
 import json

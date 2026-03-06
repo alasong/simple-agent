@@ -219,6 +219,13 @@ class Agent:
     
     def run(self, user_input: str, verbose: bool = True) -> str:
         """主循环"""
+        # 设置全局 verbose 状态（供工具使用）
+        try:
+            from tools.agent_tools import set_verbose
+            set_verbose(verbose)
+        except ImportError:
+            pass
+        
         # 感知：添加用户输入
         self.memory.add_user(user_input)
         
