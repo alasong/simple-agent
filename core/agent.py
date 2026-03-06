@@ -76,6 +76,12 @@ class Agent:
         _config = get_config()
         default_max_iter = _config.get('agent.max_iterations', 10)
         
+        # 确保 max_iterations 是整数
+        try:
+            default_max_iter = int(default_max_iter)
+        except (ValueError, TypeError):
+            default_max_iter = 10
+        
         self.llm = llm
         self.name = name
         self.version = version

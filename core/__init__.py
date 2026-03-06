@@ -29,6 +29,11 @@ from .factory import (
 )
 from .workflow import Workflow, WorkflowStep, StepResult, ResultType, create_workflow, generate_workflow
 
+# 增强功能 (阶段 1)
+from .memory_enhanced import EnhancedMemory, Experience
+from .reasoning_modes import TreeOfThought, ReflectionLoop
+from .skill_learning import SkillLibrary, Skill
+
 __all__ = [
     # 核心组件
     "BaseTool",
@@ -62,4 +67,12 @@ __all__ = [
     "ResultType",
     "create_workflow",
     "generate_workflow",
+    
+    # 增强功能 (阶段 1)
+    "EnhancedMemory",
+    "Experience",
+    "TreeOfThought",
+    "ReflectionLoop",
+    "SkillLibrary",
+    "Skill",
 ]

@@ -25,7 +25,10 @@ import tools  # noqa: F401
 from cli_agent import CLIAgent
 from core import (
     create_agent, update_prompt, get_agent, list_agents,
-    Agent, Workflow, generate_workflow
+    Agent, Workflow, generate_workflow,
+    EnhancedMemory, Experience,
+    TreeOfThought, ReflectionLoop,
+    SkillLibrary
 )
 
 # 全局 CLI Agent 实例
@@ -33,6 +36,10 @@ cli_agent = None
 
 # 当前手动管理的 Agent（单 Agent 模式）
 current_agent = None
+
+# 增强型 Agent（阶段 1 功能）
+enhanced_agent = None
+skill_library = None
 
 # 默认保存目录（从统一配置加载）
 from core.config_loader import get_config
@@ -47,7 +54,9 @@ def setup_readline():
     commands = [
         "/new ", "/update ", "/switch ", "/list", "/info", 
         "/clear", "/save", "/load ", "/workflow ", "/debug", 
-        "/isolate", "/help", "/exit"
+        "/isolate", "/help", "/exit",
+        "/enhanced ", "/memory", "/skills", "/reasoning ",
+        "/review "
     ]
     
     def completer(text, state):
@@ -83,6 +92,38 @@ def setup_readline():
                 for f in os.listdir(WORKFLOWS_DIR):
                     if f.endswith('.json') and f.startswith(partial):
                         options.append(prefix + f)
+        
+        # 补全 enhanced 策略
+        if text.startswith("/enhanced "):
+            prefix = "/enhanced "
+            partial = text[len(prefix):]
+            strategies = ["direct", "plan_reflect", "tree_of_thought"]
+            for strategy in strategies:
+                if strategy.startswith(partial):
+                    options.append(prefix + strategy)
+        
+        # 补全 reasoning 模式
+        if text.startswith("/reasoning "):
+            prefix = "/reasoning "
+            partial = text[len(prefix):]
+            modes = ["tot", "tree_of_thought", "reflection", "reflection_loop"]
+            for mode in modes:
+                if mode.startswith(partial):
+                    options.append(prefix + mode)
+        
+        # 补全 review 文件
+        if text.startswith("/review "):
+            prefix = "/review "
+            partial = text[len(prefix):]
+            # 补全 Python 文件
+            try:
+                from glob import glob
+                py_files = glob("**/*.py", recursive=True)
+                for py_file in py_files:
+                    if py_file.startswith(partial) and not any(ex in py_file for ex in ['.venv', 'venv', '__pycache__']):
+                        options.append(prefix + py_file)
+            except:
+                pass
         
         if state < len(options):
             return options[state]
@@ -124,11 +165,26 @@ def show_help():
 /load <名称>    加载 Agent（支持 builtin agents）
 /workflow <文件> 加载并运行工作流
 
+===== 阶段 1 增强功能 =====
+/enhanced [策略] 使用增强型 Agent 执行任务
+                 策略：direct, plan_reflect, tree_of_thought
+/memory         查看记忆状态（工作/短期/长期记忆）
+/memory clear   清空记忆
+/skills         查看技能库和技能统计
+/reasoning [模式] 手动选择推理模式
+                 模式：tot (思维树), reflection (反思循环)
+
+===== 代码审查工具 =====
+/review <文件>   使用 Agent 深度审查代码
+/review --all    审查所有 Python 文件
+
 ===== 说明 =====
 - 会话：自动保存对话历史到 ~/.simple-agent/sessions/
 - 每次执行任务后自动保存
 - 切换会话可恢复历史对话
 - 使用 /session 切换不同任务的上下文
+- 增强型 Agent 支持自动策略选择和记忆管理
+- 代码审查工具使用 EnhancedAgent 的代码分析技能
 """)
 
 
@@ -263,6 +319,24 @@ def run_workflow(workflow_path, user_input):
     print(f"\n结果：{result.get('_last_output', '完成')}")
 
 
+def init_enhanced_agent():
+    """初始化增强型 Agent"""
+    global enhanced_agent, skill_library
+    from core.agent_enhanced import EnhancedAgent
+    from core.llm import OpenAILLM
+    
+    llm = OpenAILLM()
+    memory = EnhancedMemory()
+    skill_library = SkillLibrary()
+    
+    enhanced_agent = EnhancedAgent(llm=llm, memory=memory, skill_library=skill_library)
+    
+    print(f"\n[阶段 1] 增强型 Agent 已初始化")
+    print(f"  - EnhancedMemory: 已启用")
+    print(f"  - SkillLibrary: {len(skill_library.skills)} 个技能")
+    print(f"  - 推理模式：TreeOfThought, ReflectionLoop")
+
+
 def interactive_mode():
     """交互模式"""
     global cli_agent, current_agent
@@ -275,6 +349,9 @@ def interactive_mode():
     # 加载默认会话到 CLI Agent
     from core.session import load_session
     load_session("default", cli_agent.agent)
+    
+    # 初始化增强型 Agent（阶段 1）
+    init_enhanced_agent()
     
     print()
     print(f"{'='*60}")
@@ -474,6 +551,148 @@ def interactive_mode():
             else:
                 isolate_mode = not isolate_mode
             print(f"隔离模式：{'已开启' if isolate_mode else '已关闭'}")
+        
+        elif user_input.startswith("/enhanced"):
+            # 使用增强型 Agent 执行任务
+            task = user_input[len("/enhanced"):].strip()
+            if not task:
+                print("用法：/enhanced [策略] <任务描述>")
+                print("策略：direct (直接), plan_reflect (规划反思), tree_of_thought (思维树)")
+                print("示例：")
+                print("  /enhanced 分析这段代码")
+                print("  /enhanced tree_of_thought 设计一个系统架构")
+                continue
+            
+            # 检查是否指定了策略
+            strategies = ["direct", "plan_reflect", "tree_of_thought"]
+            parts = task.split(None, 1)
+            if parts[0] in strategies:
+                enhanced_agent.strategy = parts[0]
+                task = parts[1] if len(parts) > 1 else task
+                print(f"\n[增强型 Agent] 使用策略：{enhanced_agent.strategy}")
+            
+            print(f"\n[增强型 Agent] 执行任务：{task}")
+            import asyncio
+            result = asyncio.run(enhanced_agent.run(task, verbose=True))
+            print(f"\n结果：{result}")
+        
+        elif user_input == "/memory":
+            # 查看记忆状态
+            if enhanced_agent:
+                mem = enhanced_agent.memory_enhanced
+                print(f"\n{'='*60}")
+                print(f"记忆状态")
+                print(f"{'='*60}")
+                print(f"工作记忆：{len(mem.working_memory)} 条")
+                print(f"短期记忆：{len(mem.short_term)} 条")
+                print(f"经验记录：{len(mem.experiences)} 条")
+                print(f"反思总结：{len(mem.reflections)} 条")
+                
+                if mem.short_term:
+                    print(f"\n最近 3 条短期记忆：")
+                    for i, exp in enumerate(list(mem.short_term)[-3:], 1):
+                        success_str = "✓" if exp.success else "✗"
+                        print(f"  {i}. [{success_str}] {exp.content[:50]}...")
+                
+                if mem.reflections:
+                    print(f"\n最新反思：")
+                    print(mem.reflections[-1][:200] + "...")
+                
+                print(f"{'='*60}")
+            else:
+                print("请先使用 /enhanced 初始化增强型 Agent")
+        
+        elif user_input == "/memory clear":
+            # 清空记忆
+            if enhanced_agent:
+                enhanced_agent.memory_enhanced.working_memory.clear()
+                enhanced_agent.memory_enhanced.short_term.clear()
+                enhanced_agent.memory_enhanced.experiences.clear()
+                enhanced_agent.memory_enhanced.reflections.clear()
+                print("记忆已清空")
+            else:
+                print("请先使用 /enhanced 初始化增强型 Agent")
+        
+        elif user_input == "/skills":
+            # 查看技能库
+            if skill_library:
+                print(f"\n{'='*60}")
+                print(f"技能库 ({len(skill_library.skills)} 个技能)")
+                print(f"{'='*60}")
+                for name, skill in skill_library.skills.items():
+                    print(f"\n{name}")
+                    print(f"  描述：{skill.description}")
+                    print(f"  触发：{skill.trigger_pattern}")
+                    print(f"  成功率：{skill.success_rate:.1%}")
+                    print(f"  使用次数：{skill.usage_count}")
+                    print(f"  工具：{', '.join(skill.tools)}")
+                print(f"{'='*60}")
+            else:
+                print("请先使用 /enhanced 初始化增强型 Agent")
+        
+        elif user_input.startswith("/reasoning"):
+            # 手动选择推理模式
+            mode = user_input[len("/reasoning"):].strip().lower()
+            if not mode:
+                print("用法：/reasoning <模式>")
+                print("模式：tot (思维树), reflection (反思循环)")
+                continue
+            
+            if mode in ["tot", "tree_of_thought"]:
+                print("\n[推理模式] 使用思维树推理 (Tree of Thought)")
+                if enhanced_agent:
+                    enhanced_agent.strategy = "tree_of_thought"
+                print("已设置策略为 tree_of_thought")
+            elif mode in ["reflection", "reflection_loop"]:
+                print("\n[推理模式] 使用反思循环 (Reflection Loop)")
+                if enhanced_agent:
+                    # 创建反思循环实例
+                    reflection = ReflectionLoop(enhanced_agent)
+                    enhanced_agent._reflection_loop = reflection
+                    print("已创建 ReflectionLoop 实例，可通过 /enhanced 使用")
+            else:
+                print(f"未知模式：{mode}")
+                print("可用模式：tot, tree_of_thought, reflection, reflection_loop")
+        
+        elif user_input.startswith("/review"):
+            # 使用 Agent 审查代码
+            file_path = user_input[len("/review"):].strip()
+            if not file_path:
+                print("用法：/review <文件路径>")
+                print("示例：")
+                print("  /review core/agent.py")
+                print("  /review --all  (审查所有 Python 文件)")
+                continue
+            
+            if file_path == "--all":
+                # 审查所有 Python 文件
+                from glob import glob
+                py_files = glob("**/*.py", recursive=True)
+                py_files = [f for f in py_files if not any(ex in f for ex in ['.venv', 'venv', '__pycache__', '.git'])]
+                
+                if not py_files:
+                    print("❌ 没有找到 Python 文件")
+                else:
+                    print(f"\n📋 找到 {len(py_files)} 个 Python 文件")
+                    print(f"将使用 EnhancedAgent 逐个审查...")
+                    
+                    for i, f in enumerate(py_files[:5], 1):  # 限制为前 5 个
+                        print(f"\n[{i}/{len(py_files)}] 审查：{f}")
+                        import asyncio
+                        result = asyncio.run(enhanced_agent.run(f"审查这个 Python 文件的代码质量和安全性：{f}", verbose=True))
+                        print(result[:500] + "..." if len(result) > 500 else result)
+                    
+                    if len(py_files) > 5:
+                        print(f"\n... 还有 {len(py_files) - 5} 个文件未显示")
+            else:
+                # 审查单个文件
+                if not os.path.exists(file_path):
+                    print(f"❌ 文件不存在：{file_path}")
+                else:
+                    print(f"\n🤖 使用 EnhancedAgent 审查：{file_path}")
+                    import asyncio
+                    result = asyncio.run(enhanced_agent.run(f"审查这个 Python 文件的代码质量和安全性：{file_path}", verbose=True))
+                    print(f"\n审查结果:\n{result}")
         
         else:
             # 执行任务
