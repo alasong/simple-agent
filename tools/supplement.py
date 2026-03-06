@@ -2,9 +2,10 @@
 补充工具 - 对已有结果进行补充说明
 """
 from typing import Optional
-from core import BaseTool, ToolResult
+from core import tool, BaseTool, ToolResult
 
 
+@tool(tags=["analysis", "supplement"], description="对已有结果进行补充说明")
 class SupplementTool(BaseTool):
     """补充工具 - 对之前的结果添加补充说明"""
     
@@ -82,6 +83,7 @@ class SupplementTool(BaseTool):
         )
 
 
+@tool(tags=["analysis", "explanation"], description="解释某个结论的详细原因")
 class ExplainReasonTool(BaseTool):
     """解释原因工具 - 专门用于补充详细原因"""
     
