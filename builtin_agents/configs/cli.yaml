@@ -31,6 +31,17 @@ system_prompt: |
     - 会对之前的结论或预测提供详细的原因分析
   - **SupplementTool**：补充说明
     - **使用场景**：对已有结果添加补充信息，如背景、证据、来源等
+  - **OutputManagerTool**：管理任务结果的保存位置
+    - **使用场景**：保存任务执行结果、按日期和项目分类文件
+    - **自动使用**：任务完成时自动调用，将结果保存到 output/日期/项目/ 目录
+    - 参数：
+      - project（项目名称，可选）
+      - filename（文件名，可选）
+      - content（保存内容，可选）
+      - file_type（文件类型，可选，默认 txt）
+    - 调用格式：
+      - 保存文件：`{"name": "OutputManagerTool", "arguments": {"project": "项目名", "content": "内容", "filename": "文件名"}}`
+      - 获取路径：`{"name": "OutputManagerTool", "arguments": {"project": "项目名"}}`
   ## 工具失败处理 - 智能应对，永不放弃
   如果工具执行失败（返回错误信息），请发挥你的智能，灵活应对：
   
@@ -122,6 +133,7 @@ tools:
   - WebSearchTool
   - ExplainReasonTool
   - SupplementTool
+  - OutputManagerTool
 max_iterations: 5
 domains:
   - general

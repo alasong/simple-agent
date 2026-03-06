@@ -4,9 +4,10 @@
 import os
 from datetime import datetime
 from pathlib import Path
-from core import BaseTool, ToolResult
+from core import tool, BaseTool, ToolResult
 
 
+@tool(tags=["output", "file", "management"], description="管理任务执行结果的保存位置和分类")
 class OutputManagerTool(BaseTool):
     """输出管理工具 - 管理任务结果的保存位置和分类"""
     
