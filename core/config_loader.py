@@ -24,16 +24,23 @@ class ConfigLoader:
 
         支持格式:
         - ${VAR} - 从环境变量获取，无默认值
-        - ${VAR:default} - 有默认值
+        - ${VAR:default} - 有默认值（可嵌套，如 ${SESSION_DIR:${HOME}/path}）
         - 特殊变量 HOME 直接使用 os.environ['HOME']
         """
         if isinstance(value, str):
-            # 匹配 ${VAR} 或 ${VAR:default}
-            pattern = r'\$\{([^}:]+)(?::([^}]*))?\}'
+            # 匹配 ${VAR} 或 ${VAR:default}，支持嵌套的 {}
+            # 使用两个正则：先匹配内部变量，再匹配外部
+            pattern = r'\$\{([^:}]+):((?:[^{}]|\{[^{}]*\})*)\}|\$\{([^}:]+)\}'
 
             def replace_var(match):
-                var_name = match.group(1)
-                default = match.group(2)
+                # 带默认值的情况
+                if match.group(1) is not None:
+                    var_name = match.group(1)
+                    default = match.group(2)
+                else:
+                    # 不带默认值的情况
+                    var_name = match.group(3)
+                    default = None
                 
                 # 特殊处理 HOME 变量
                 if var_name == 'HOME':
@@ -44,10 +51,8 @@ class ConfigLoader:
                 if env_value is not None:
                     return env_value
                 elif default is not None:
-                    # 处理嵌套的环境变量 (如 ${HOME})
-                    if default.startswith('${'):
-                        return self._expand_env_vars(default)
-                    return default
+                    # 递归处理默认值中的环境变量
+                    return self._expand_env_vars(default)
                 else:
                     # 无默认值，返回变量名本身（保持原样）
                     return match.group(0)
