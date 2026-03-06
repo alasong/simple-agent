@@ -1,82 +1,73 @@
-# AI驱动股市热点分析系统
-
-一个集成固态电池、半导体设备、AI算力三个前沿科技领域的实时数据分析和智能评估系统。
+# Simple Agent - 智能 Agent 系统文档
 
 ## 项目概述
 
-本项目是一个AI驱动的股市热点分析系统，旨在通过整合多个维度的数据（股价、交易量、新闻情绪等），为投资者提供热点板块预测和投资建议。系统重点关注三个前沿科技领域：固态电池、半导体设备和AI算力。
+Simple Agent 是一个灵活的、可扩展的智能 Agent 系统，支持自定义 Agent 创建、工作流自动化和多 Agent 协作。
 
 ## 架构设计
 
 ### 核心组件
 
-1. **数据获取层 (data_fetcher.py)**
-   - 获取实时股价数据
-   - 获取相关新闻资讯
-   - 计算技术指标
+1. **核心框架 (core/)**
+   - `agent.py`: Agent 基类和执行引擎
+   - `tool.py`: 工具接口和注册系统
+   - `llm.py`: LLM 抽象接口
+   - `session.py`: 会话管理
+   - `config_loader.py`: 配置加载器
+   - `resource.py`: 资源仓库
 
-2. **分析引擎 (analyzer.py)**
-   - 计算趋势评分
-   - 计算动量评分
-   - 计算情绪评分
-   - 计算波动评分
+2. **内置 Agents (builtin_agents/)**
+   - CLI Agent: 用户交互入口
+   - Planner Agent: 任务规划
+   - Developer Agent: 代码开发
+   - Reviewer Agent: 代码审查
+   - Tester Agent: 测试生成
 
-3. **报告生成器 (report_generator.py)**
-   - 生成HTML可视化报告
-   - 生成JSON数据报告
-   - 生成可视化图表
+3. **工具系统 (tools/)**
+   - 文件操作工具
+   - Web 搜索工具
+   - Agent 调用工具
+   - 工作流工具
+   - 补充说明工具
 
-4. **数据模型 (models.py)**
-   - StockData: 股票数据模型
-   - NewsArticle: 新闻文章模型
-   - AnalysisResult: 分析结果模型
-   - MarketInsight: 市场洞察模型
-
-### 配置管理 (config.py)
-
-定义了三个重点行业的配置：
-- 固态电池: 关键词、相关股票、API端点
-- 半导体设备: 关键词、相关股票、API端点
-- AI算力: 关键词、相关股票、API端点
+4. **配置系统 (config/)**
+   - `settings.yaml`: 通用设置
+   - `apis.yaml`: API 端点配置
+   - `builtin_agents/configs/`: Agent 配置
 
 ## 功能特性
 
-### 1. 多维度数据整合
-- 实时股价数据
-- 交易量信息
-- 市场新闻情绪
-- 技术指标分析
+### 1. 多 Agent 协作
+- 支持多个专业 Agent 协同工作
+- 自动任务分发和协调
+- 结果汇总和整合
 
-### 2. 智能分析引擎
-- **趋势评分**: 衡量行业整体上涨/下跌趋势
-- **动量评分**: 衡量市场参与热度
-- **情绪评分**: 基于新闻的情感分析
-- **波动评分**: 衡量市场风险水平
+### 2. 工作流创建
+- 定义 Agent 执行顺序
+- 条件分支和循环
+- 错误处理和重试
 
-### 3. 实时监控
-- 持续跟踪三大热点行业
-- 实时更新数据和评分
-- 异常情况检测
+### 3. 工具扩展
+- 丰富的内置工具集
+- 自定义工具开发
+- 工具自动注册
 
-### 4. 可视化报告
-- HTML格式交互式报告
-- JSON格式数据接口
-- PNG格式可视化图表
+### 4. 会话管理
+- 自动保存会话状态
+- 历史会话恢复
+- 会话导出和导入
 
-### 5. 投资建议
-- 基于数据分析的投资策略
-- 风险评估和等级划分
-- 信心评分机制
+### 5. 配置驱动
+- YAML 配置文件
+- 环境变量支持
+- 动态配置重载
 
 ## 技术栈
 
 - Python 3.7+
-- yfinance: 股票数据获取
-- requests: HTTP请求
-- pandas: 数据处理
-- numpy: 数值计算
-- matplotlib: 数据可视化
-- dataclasses: 数据模型定义
+- OpenAI API / 兼容 API
+- YAML 配置
+- 异步执行支持
 
 ## 安装部署
 
@@ -85,13 +76,11 @@
 ```bash
 # 克隆项目
 git clone <repository-url>
-cd stock-analyzer
+cd simple-agent
 
 # 创建虚拟环境
 python -m venv venv
 source venv/bin/activate  # Linux/Mac
-# 或
-venv\Scripts\activate  # Windows
 
 # 安装依赖
 pip install -r requirements.txt
@@ -99,20 +88,20 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-### API配置
+### API 配置
 
-在使用前需要配置API密钥：
+在使用前配置 API 密钥：
 
 ```bash
-export ALPHA_VANTAGE_API_KEY="your_alpha_vantage_api_key"
-export NEWS_API_KEY="your_news_api_key"
+export OPENAI_API_KEY="your_openai_api_key"
+export BING_SEARCH_API_KEY="your_bing_api_key"
 ```
 
-或者创建`.env`文件：
+或者创建 `.env` 文件：
 
 ```
-ALPHA_VANTAGE_API_KEY=your_alpha_vantage_api_key
-NEWS_API_KEY=your_news_api_key
+OPENAI_API_KEY=your_openai_api_key
+BING_SEARCH_API_KEY=your_bing_api_key
 ```
 
 ## 使用方法
@@ -120,57 +109,166 @@ NEWS_API_KEY=your_news_api_key
 ### 命令行使用
 
 ```bash
-# 运行完整分析，默认输出到./reports目录
-python -m stock_analyzer.app
+# 启动 CLI Agent
+python cli.py
 
-# 指定输出目录
-python -m stock_analyzer.app --output-dir ./my_reports
-
-# 显示详细日志
-python -m stock_analyzer.app --verbose
+# 或者使用安装后的命令
+simple-agent
 ```
 
-### 作为模块使用
+### 创建工作流
 
 ```python
-from stock_analyzer.app import StockAnalysisApp
+from builtin_agents import create_builtin_agent
 
-app = StockAnalysisApp()
-analysis_results, market_insight = app.run_analysis()
-app.save_reports(analysis_results, market_insight, './my_reports')
+# 创建 CLI Agent
+cli_agent = create_builtin_agent("cli")
+
+# 使用 CreateWorkflowTool 创建工作流
 ```
 
-## 输出说明
+### 自定义 Agent
 
-系统生成三种类型的输出：
+在 `custom_agents/` 目录创建 YAML 配置文件：
 
-1. **HTML报告**: 包含可视化图表和详细分析的网页
-2. **JSON数据**: 结构化数据，便于进一步处理
-3. **PNG图表**: 可视化指标对比图
+```yaml
+name: My Custom Agent
+version: 1.0.0
+description: 我的自定义 Agent
+system_prompt: |
+  你是专业的自定义 Agent...
+tools:
+  - ReadFileTool
+  - WebSearchTool
+max_iterations: 10
+domains:
+  - software_engineering
+```
 
-## 扩展性设计
+## 配置说明
+
+### settings.yaml
+
+```yaml
+directories:
+  agents: "./agents"
+  workflows: "./workflows"
+  output: "./cli_output"
+  sessions: "${HOME}/.simple-agent/sessions"
+
+agent:
+  max_iterations: 10
+
+llm:
+  default_model: "gpt-4o-mini"
+  api_base: "https://api.openai.com/v1"
+```
+
+### apis.yaml
+
+```yaml
+bing_search:
+  url: "https://api.bing.microsoft.com/v7.0/search"
+
+google_search:
+  url: "https://customsearch.googleapis.com/customsearch/v1"
+```
+
+## 内置 Agent
+
+### CLI Agent
+- 用户交互入口
+- 简单问题直接回答
+- 复杂任务自动分发
+- 工具：WebSearchTool, GetCurrentDateTool, ExplainReasonTool, SupplementTool
+
+### Planner Agent
+- 复杂任务规划
+- 多 Agent 协调
+- 任务分解和分配
+
+### Developer Agent
+- 代码开发和实现
+- 代码审查和修改
+- 文档编写
+
+### Reviewer Agent
+- 代码质量检查
+- 最佳实践验证
+- 改进建议
+
+### Tester Agent
+- 测试用例生成
+- 单元测试编写
+- 集成测试设计
+
+## 工具系统
+
+### 内置工具列表
+
+- **文件操作**: `ReadFileTool`, `WriteFileTool`
+- **检查工具**: `CheckFileExistsTool`, `CheckContentTool`, `CheckPythonSyntaxTool`
+- **Agent 工具**: `InvokeAgentTool`, `CreateWorkflowTool`, `ListAgentsTool`
+- **搜索工具**: `WebSearchTool`
+- **时间工具**: `GetCurrentDateTool`
+- **补充工具**: `ExplainReasonTool`, `SupplementTool`
+
+### 自定义工具
+
+```python
+from core import BaseTool, ToolResult
+
+class MyCustomTool(BaseTool):
+    @property
+    def name(self) -> str:
+        return "MyCustomTool"
+    
+    @property
+    def description(self) -> str:
+        return "我的自定义工具描述"
+    
+    @property
+    def parameters(self) -> dict:
+        return {...}
+    
+    def execute(self, **kwargs) -> ToolResult:
+        # 实现工具逻辑
+        return ToolResult(success=True, output="结果")
+```
+
+## 会话管理
+
+会话自动保存到 `~/.simple-agent/sessions/` 目录。
+
+会话文件包含：
+- 对话历史
+- Agent 状态
+- 工具使用记录
+- 上下文信息
+
+## 扩展性
 
 系统设计具有良好的扩展性：
 
-- 可轻松添加新的行业配置
-- 可调整分析算法和评分规则
-- 可集成更多的数据源
-- 可扩展报告类型和格式
+- **添加 Agent**: 在 `custom_agents/` 创建 YAML 配置
+- **开发工具**: 实现 `BaseTool` 接口
+- **工作流模板**: 定义复杂执行流程
+- **集成服务**: 通过工具调用外部 API
 
-## 注意事项
+## 最佳实践
 
-1. 本工具仅供学习和研究使用，不构成投资建议
-2. 实际部署时需要有效的API密钥
-3. 请遵守相关API的使用频率限制
-4. 数据准确性取决于第三方API提供商
+1. **Agent 设计**: 每个 Agent 专注于单一职责
+2. **工具开发**: 保持工具原子性和可组合性
+3. **配置管理**: 使用环境变量管理敏感信息
+4. **会话恢复**: 定期保存重要会话状态
 
-## 未来发展方向
+## 故障排除
 
-1. 集成更多数据源（社交媒体、财报等）
-2. 引入更复杂的情绪分析模型
-3. 增加机器学习预测功能
-4. 开发Web界面和API服务
-5. 添加回测功能验证策略效果
+### 常见问题
+
+1. **工具未找到**: 确保工具已正确注册到资源仓库
+2. **配置加载失败**: 检查 YAML 文件格式和环境变量
+3. **会话保存失败**: 确认存储目录权限和路径
 
 ## 许可证
 

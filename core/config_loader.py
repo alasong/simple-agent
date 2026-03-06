@@ -16,7 +16,6 @@ class ConfigLoader:
     def __init__(self, config_dir: Optional[str] = None):
         self.config_dir = Path(config_dir or os.getenv("CONFIG_DIR", "./config"))
         self._settings: Optional[Dict] = None
-        self._sectors: Optional[Dict] = None
         self._apis: Optional[Dict] = None
 
     def _expand_env_vars(self, value: Any) -> Any:
@@ -83,13 +82,6 @@ class ConfigLoader:
         return self._settings
 
     @property
-    def sectors(self) -> Dict:
-        """行业配置"""
-        if self._sectors is None:
-            self._sectors = self._load_yaml('sectors.yaml')
-        return self._sectors
-
-    @property
     def apis(self) -> Dict:
         """API 端点配置"""
         if self._apis is None:
@@ -120,7 +112,6 @@ class ConfigLoader:
     def reload(self):
         """重新加载所有配置"""
         self._settings = None
-        self._sectors = None
         self._apis = None
 
 

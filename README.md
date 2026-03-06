@@ -1,21 +1,23 @@
-# AI驱动股市热点分析工具
+# Simple Agent - 智能 Agent 系统
 
-一个集成固态电池、半导体设备、AI算力三个前沿科技领域的实时数据分析和智能评估系统。
+一个灵活的、可扩展的智能 Agent 系统，支持自定义 Agent 和工作流创建。
 
 ## 功能特点
 
-- **多维度数据整合**: 结合股价、交易量、新闻情绪等多源数据
-- **智能分析引擎**: 计算趋势、动量、情绪、波动等多项指标
-- **实时监控**: 对三大热点行业进行持续跟踪分析
-- **可视化报告**: 生成详细的HTML、JSON格式分析报告
-- **投资建议**: 基于数据分析提供投资策略建议
+- **多 Agent 协作**: 支持多个专业 Agent 协同工作
+- **工作流创建**: 可创建工作流自动化复杂任务
+- **工具扩展**: 丰富的工具集，支持自定义工具
+- **会话管理**: 自动保存和恢复会话状态
+- **配置驱动**: 通过 YAML 配置文件管理所有设置
+- **环境变量支持**: 灵活的配置管理
 
 ## 技术架构
 
-- **数据获取层**: 通过API获取实时股价和新闻数据
-- **分析引擎**: 多维度评分算法，综合评估各行业状况
-- **报告生成**: HTML可视化界面与JSON数据接口
-- **配置管理**: 支持灵活的行业和股票配置
+- **核心框架**: Agent、Tool、LLM 统一抽象接口
+- **资源仓库**: 集中管理工具和 Agent 注册
+- **配置系统**: YAML 配置 + 环境变量
+- **工具系统**: 文件操作、Web 搜索、Agent 调用等
+- **会话管理**: 持久化存储和历史追踪
 
 ## 安装依赖
 
@@ -29,75 +31,111 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-## 使用方法
+## 快速开始
 
 ### 命令行使用
 
 ```bash
-# 运行完整分析，默认输出到./reports目录
-python -m stock_analyzer.app
+# 启动 CLI Agent
+python cli.py
 
-# 指定输出目录
-python -m stock_analyzer.app --output-dir ./my_reports
-
-# 仅生成JSON格式报告
-python -m stock_analyzer.app --format json
-
-# 显示详细日志
-python -m stock_analyzer.app --verbose
+# 或者使用命令
+simple-agent
 ```
 
-### 作为模块使用
+### 创建工作流
+
+1. 使用 `CreateWorkflowTool` 创建工作流
+2. 定义 Agent 执行顺序
+3. 保存并执行工作流
+
+### 使用 Agent
 
 ```python
-from stock_analyzer.app import StockAnalysisApp
+from builtin_agents import create_builtin_agent
 
-app = StockAnalysisApp()
-analysis_results, market_insight = app.run_analysis()
-app.save_reports(analysis_results, market_insight, './my_reports')
+# 创建 CLI Agent
+cli_agent = create_builtin_agent("cli")
+
+# 或者创建 Planner Agent
+planner_agent = create_builtin_agent("planner")
 ```
 
 ## 配置说明
 
-在 `stock_analyzer/config.py` 中可以配置：
+所有配置文件位于 `config/` 目录：
 
-- 各行业关键词
-- 相关股票列表
-- API端点设置
-- 分析参数
+- `settings.yaml`: 通用设置（目录、API 密钥等）
+- `apis.yaml`: API 端点配置
+- `builtin_agents/configs/`: Agent 配置
 
-## 输出示例
+环境变量配置：
 
-工具会生成以下类型的输出：
+- `OPENAI_API_KEY`: OpenAI API 密钥
+- `BING_SEARCH_API_KEY`: Bing 搜索 API 密钥
+- 其他配置参见 `config/settings.yaml`
 
-- **HTML报告**: 包含可视化图表和详细分析的网页
-- **JSON数据**: 结构化数据，便于进一步处理
-- **PNG图表**: 可视化指标对比图
+## 内置 Agent
 
-## 数据模型
+- **CLI Agent**: 用户交互入口，处理简单问题和任务分发
+- **Planner Agent**: 复杂任务规划和协调
+- **Developer Agent**: 代码开发和实现
+- **Reviewer Agent**: 代码审查
+- **Tester Agent**: 测试生成
 
-- `StockData`: 股票基础数据
-- `NewsArticle`: 新闻文章数据
-- `AnalysisResult`: 单个行业的分析结果
-- `MarketInsight`: 整体市场洞察
+## 工具系统
 
-## API配置
+### 内置工具
 
-需要在环境变量中设置：
+- `ReadFileTool` / `WriteFileTool`: 文件读写
+- `WebSearchTool`: Web 搜索
+- `GetCurrentDateTool`: 获取当前时间
+- `InvokeAgentTool`: 调用其他 Agent
+- `CreateWorkflowTool`: 创建工作流
+- `ListAgentsTool`: 列出可用 Agent
+- `ExplainReasonTool`: 解释原因
+- `SupplementTool`: 补充说明
 
-- `ALPHA_VANTAGE_API_KEY`: 股价数据API密钥
-- `NEWS_API_KEY`: 新闻数据API密钥
+### 自定义工具
+
+可以通过实现 `BaseTool` 接口创建自定义工具。
+
+## 自定义 Agent
+
+在 `custom_agents/` 目录创建 YAML 配置文件：
+
+```yaml
+name: My Custom Agent
+version: 1.0.0
+description: 我的自定义 Agent
+system_prompt: |
+  你是专业的自定义 Agent...
+tools:
+  - ReadFileTool
+  - WebSearchTool
+max_iterations: 10
+domains:
+  - software_engineering
+```
+
+## 会话管理
+
+会话自动保存到 `~/.simple-agent/sessions/` 目录。
 
 ## 注意事项
 
-1. 本工具仅供学习和研究使用，不构成投资建议
-2. 实际部署时需要有效的API密钥
-3. 请遵守相关API的使用频率限制
-4. 数据准确性取决于第三方API提供商
+1. 首次使用需要配置 API 密钥
+2. 确保环境变量正确设置
+3. 工作流和 Agent 配置保存在本地
 
 ## 扩展性
 
-系统设计具有良好的扩展性，可轻松添加新的行业或调整分析算法。
+系统设计具有良好的扩展性：
+
+- 添加新的自定义 Agent
+- 开发专用工具
+- 创建工作流模板
+- 集成外部服务
 
 ## 许可证
 

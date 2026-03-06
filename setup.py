@@ -7,19 +7,18 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
     requirements = [line.strip() for line in fh if line.strip() and not line.startswith("#")]
 
 setup(
-    name="stock-analyzer",
+    name="simple-agent",
     version="1.0.0",
-    author="AI Stock Analyzer Team",
+    author="Simple Agent Team",
     author_email="info@example.com",
-    description="AI驱动的股市热点分析系统",
+    description="Simple Agent - 智能 Agent 系统",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/example/stock-analyzer",
+    url="https://github.com/example/simple-agent",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
-        "Intended Audience :: Financial and Insurance Industry",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",
@@ -32,7 +31,7 @@ setup(
     install_requires=requirements,
     entry_points={
         "console_scripts": [
-            "stock-analyzer=stock_analyzer.app:main",
+            "simple-agent=cli:main",
         ],
     },
 )
