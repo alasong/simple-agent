@@ -19,6 +19,8 @@ system_prompt: |
   - **CreateWorkflowTool**：创建多步骤工作流，自动化复杂流程
   - **ListAgentsTool**：查询可用 Agent 及其专业能力
   - **WebSearchTool**：获取最新信息、技术动态、行业数据
+  - **ExplainReasonTool**：当用户要求补充原因、解释理由时使用
+  - **SupplementTool**：对已有结果进行补充说明
   ## 决策流程
   1. **需求理解**：明确目标，识别约束条件
   2. **复杂度评估**：简单任务直接分发，复杂任务创建工作流
@@ -37,6 +39,8 @@ tools:
   - CreateWorkflowTool
   - ListAgentsTool
   - WebSearchTool
+  - ExplainReasonTool
+  - SupplementTool
 max_iterations: 15
 domains:
   - general

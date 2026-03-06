@@ -23,8 +23,9 @@ class ConfigLoader:
         """递归替换环境变量
 
         支持格式:
-        - ${VAR} - 必须存在
+        - ${VAR} - 从环境变量获取，无默认值
         - ${VAR:default} - 有默认值
+        - 特殊变量 HOME 直接使用 os.environ['HOME']
         """
         if isinstance(value, str):
             # 匹配 ${VAR} 或 ${VAR:default}
@@ -33,6 +34,11 @@ class ConfigLoader:
             def replace_var(match):
                 var_name = match.group(1)
                 default = match.group(2)
+                
+                # 特殊处理 HOME 变量
+                if var_name == 'HOME':
+                    return os.environ.get('HOME', '/tmp')
+                
                 env_value = os.getenv(var_name)
 
                 if env_value is not None:
@@ -43,8 +49,8 @@ class ConfigLoader:
                         return self._expand_env_vars(default)
                     return default
                 else:
-                    # 无默认值，返回空字符串
-                    return ''
+                    # 无默认值，返回变量名本身（保持原样）
+                    return match.group(0)
 
             return re.sub(pattern, replace_var, value)
         elif isinstance(value, dict):
