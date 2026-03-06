@@ -13,6 +13,9 @@ CLI Agent - 统一的用户交互入口
 
 from typing import Optional, Any
 
+# 先导入工具模块，确保工具注册到资源仓库
+import tools  # noqa: F401
+
 from core.llm import OpenAILLM
 
 
@@ -161,7 +164,19 @@ class CLIAgent:
         if verbose:
             print(f"\n[CLI Agent] 使用 CLI Agent 处理简单任务...")
         
-        result = self.agent.run(user_input, verbose=verbose)
+        # 检测是否需要实时信息
+        realtime_keywords = [
+            "天气", "气温", "下雨", "刮风", "雾霾", "空气质量",
+            "新闻", "头条", "最新", "今天", "现在", "当前",
+            "股价", "比分", "排名", "热搜", "疫情"
+        ]
+        
+        # 如果查询包含实时信息关键词，添加明确指示
+        enhanced_input = user_input
+        if any(kw in user_input for kw in realtime_keywords):
+            enhanced_input = f"{user_input}（请使用 WebSearchTool 搜索获取最新信息）"
+        
+        result = self.agent.run(enhanced_input, verbose=verbose)
         
         if verbose:
             print(f"\n[CLI Agent] 任务完成")

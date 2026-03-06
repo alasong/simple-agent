@@ -36,7 +36,6 @@ system_prompt: |
 tools:
   - ReadFileTool
   - WriteFileTool
-  - BashTool
   - WebSearchTool
 max_iterations: 15
 domains:

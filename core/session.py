@@ -114,9 +114,8 @@ class SessionManager:
             
             # 恢复系统提示词
             system_prompt = data.get("system_prompt", "")
-            if system_prompt and hasattr(agent, 'system_prompt'):
-                # 注意：system_prompt 可能是 property，不一定能直接设置
-                pass
+            if system_prompt and hasattr(agent.memory, 'add_system'):
+                agent.memory.add_system(system_prompt)
             
             # 恢复消息
             messages = data.get("messages", [])
