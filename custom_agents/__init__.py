@@ -6,6 +6,7 @@ Custom Agents - 用户自定义 Agent
 
 import os
 import json
+import yaml
 from pathlib import Path
 from typing import Optional, Dict, List
 
@@ -32,9 +33,12 @@ def list_custom_agents() -> List[str]:
         return []
     
     agents = []
-    for config_file in configs_dir.glob("*.json"):
-        agent_type = config_file.stem
-        agents.append(agent_type)
+    # 支持 .yaml, .yml 和 .json 格式
+    for ext in ["*.yaml", "*.yml", "*.json"]:
+        for config_file in configs_dir.glob(ext):
+            agent_type = config_file.stem
+            if agent_type not in agents:
+                agents.append(agent_type)
     
     return sorted(agents)
 
@@ -42,13 +46,18 @@ def list_custom_agents() -> List[str]:
 def get_custom_agent_config(agent_type: str) -> Optional[Dict]:
     """获取自定义 Agent 的配置"""
     configs_dir = get_custom_agents_dir() / "configs"
-    config_file = configs_dir / f"{agent_type}.json"
     
-    if not config_file.exists():
-        return None
+    # 尝试多种格式：.yaml, .yml, .json
+    for ext in [".yaml", ".yml", ".json"]:
+        config_file = configs_dir / f"{agent_type}{ext}"
+        if config_file.exists():
+            with open(config_file, 'r', encoding='utf-8') as f:
+                if ext == ".json":
+                    return json.load(f)
+                else:
+                    return yaml.safe_load(f)
     
-    with open(config_file, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    return None
 
 
 def load_custom_agent(agent_type: str) -> Optional[Agent]:

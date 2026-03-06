@@ -1,7 +1,7 @@
 """
 Builtin Agents - 预定义的专业 Agent
 
-基于统一的 Agent 配置框架，从 JSON 配置文件加载
+基于统一的 Agent 配置框架，从 YAML 配置文件加载
 
 可用的 Agent:
 - developer: 开发工程师（代码编写、功能实现）
@@ -18,7 +18,7 @@ Builtin Agents - 预定义的专业 Agent
 import tools  # noqa: F401
 
 import os
-import json
+import yaml
 from typing import Optional, Dict, List
 from pathlib import Path
 
@@ -47,15 +47,17 @@ def _load_agent_config(agent_type: str) -> dict:
     if agent_type in _agent_configs:
         return _agent_configs[agent_type]
     
-    # 构建配置文件路径
-    config_path = CONFIG_DIR / f"{agent_type}.json"
-    
-    if not config_path.exists():
-        raise ValueError(f"未知的 agent 类型：{agent_type} (配置文件不存在：{config_path})")
+    # 构建配置文件路径（支持 .yaml 和 .yml）
+    for ext in [".yaml", ".yml"]:
+        config_path = CONFIG_DIR / f"{agent_type}{ext}"
+        if config_path.exists():
+            break
+    else:
+        raise ValueError(f"未知的 agent 类型：{agent_type} (配置文件不存在：{CONFIG_DIR}/{agent_type}.yaml)")
     
     # 加载配置
     with open(config_path, 'r', encoding='utf-8') as f:
-        config = json.load(f)
+        config = yaml.safe_load(f)
     
     # 缓存
     _agent_configs[agent_type] = config
@@ -127,9 +129,13 @@ def list_available_agents() -> List[str]:
     
     # 扫描配置文件目录
     agents = []
-    for config_file in CONFIG_DIR.glob("*.json"):
+    for config_file in CONFIG_DIR.glob("*.yaml"):
         agent_type = config_file.stem
         agents.append(agent_type)
+    for config_file in CONFIG_DIR.glob("*.yml"):
+        agent_type = config_file.stem
+        if agent_type not in agents:  # 避免重复
+            agents.append(agent_type)
     
     return sorted(agents)
 
