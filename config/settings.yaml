@@ -2,12 +2,22 @@
 
 # 目录配置
 directories:
+  # Agent 和工作流配置
   agents: "${AGENTS_DIR:./agents}"
   workflows: "${WORKFLOWS_DIR:./workflows}"
+  
+  # 输出目录 - 所有生成的文件都保存到这里，不污染根目录
   output: "${OUTPUT_DIR:./output}"
   output_root: "${OUTPUT_ROOT:./output}"
+  
+  # 会话和报告
   sessions: "${SESSION_DIR:${HOME}/.simple-agent/sessions}"
   reports: "${REPORTS_DIR:./output/reports}"
+  
+  # 代码生成输出目录
+  generated_code: "${GENERATED_CODE_DIR:./output/generated}"
+  cli_output: "${CLI_OUTPUT_DIR:./output/cli}"
+  swarm_output: "${SWARM_OUTPUT_DIR:./output/swarm}"
 
 # Agent 默认配置
 agent:

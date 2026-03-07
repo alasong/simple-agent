@@ -1,304 +1,201 @@
-# Simple Agent - 智能 Agent 系统
+# Simple Agent - 智能任务管理系统
 
-一个灵活的、可扩展的智能 Agent 系统，支持自定义 Agent 创建、工作流自动化和多 Agent 协作。
+一个基于 AI 的智能任务管理系统，支持单 Agent 执行、Swarm 群体智能协作等多种模式。
 
-## 功能特点
+## 🚀 快速开始
 
-- **多 Agent 协作**: 支持多个专业 Agent 协同工作，自动任务分发和协调
-- **工作流创建**: 定义 Agent 执行顺序，支持条件分支、循环和错误处理
-- **工具扩展**: 丰富的内置工具集，支持自定义工具开发和自动注册
-- **会话管理**: 自动保存和恢复会话状态，支持历史会话追踪
-- **配置驱动**: 通过 YAML 配置文件管理所有设置
-- **环境变量支持**: 灵活的配置管理和动态重载
-
-## 技术架构
-
-### 核心组件
-
-- **核心框架 (core/)**: Agent 基类、Tool 接口、LLM 抽象、会话管理、配置加载器、资源仓库
-- **内置 Agents (builtin_agents/)**: CLI、Planner、Developer、Reviewer、Tester Agent
-- **工具系统 (tools/)**: 文件操作、Web 搜索、Agent 调用、工作流工具等
-- **配置系统 (config/)**: settings.yaml、apis.yaml、Agent 配置文件
-
-### 技术栈
-
-- Python 3.7+
-- OpenAI API / 兼容 API
-- YAML 配置
-- 异步执行支持
-
-## 安装部署
-
-### 环境准备
+### 安装依赖
 
 ```bash
-# 克隆项目
-git clone <repository-url>
-cd simple-agent
-
-# 创建虚拟环境
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-
-# 安装依赖
 pip install -r requirements.txt
 ```
 
-或直接安装：
+### 配置环境变量
 
 ```bash
-pip install -e .
+export OPENAI_API_KEY="your-api-key"
+export OPENAI_API_BASE="https://api.openai.com/v1"
 ```
 
-### API 配置
-
-在使用前配置 API 密钥：
+### 启动 CLI
 
 ```bash
-export OPENAI_API_KEY="your_openai_api_key"
-export BING_SEARCH_API_KEY="your_bing_api_key"
-```
-
-或者创建 `.env` 文件：
-
-```
-OPENAI_API_KEY=your_openai_api_key
-BING_SEARCH_API_KEY=your_bing_api_key
-```
-
-## 快速开始
-
-### 命令行使用
-
-```bash
-# 启动 CLI Agent
 python cli.py
-
-# 或者使用命令
-simple-agent
 ```
 
-### 创建工作流
+## 📚 文档导航
 
-1. 使用 `CreateWorkflowTool` 创建工作流
-2. 定义 Agent 执行顺序
-3. 保存并执行工作流
+**所有文档都在 [`docs/`](docs/) 目录中**
 
-### 使用 Agent
+### 核心文档
+
+| 文档 | 说明 |
+|------|------|
+| **[docs/README.md](docs/README.md)** | 📖 Swarm 系统文档总索引 |
+| **[docs/HOW_TO_USE_SWARM_IN_CLI.md](docs/HOW_TO_USE_SWARM_IN_CLI.md)** | 💬 如何在 CLI 中使用 Swarm |
+| **[docs/AGENT_CODE_DEVELOPMENT.md](docs/AGENT_CODE_DEVELOPMENT.md)** | 💻 Agent 代码开发流程详解 |
+| **[docs/INCREMENTAL_CODE_WRITING.md](docs/INCREMENTAL_CODE_WRITING.md)** | 📝 逐步写入机制详解 |
+| **[docs/OUTPUT_DIRECTORY.md](docs/OUTPUT_DIRECTORY.md)** | 📁 输出目录管理指南 |
+
+### 使用指南
+
+| 文档 | 说明 |
+|------|------|
+| **[docs/HOW_TO_USE_SWARM.md](docs/HOW_TO_USE_SWARM.md)** | Swarm Python API 使用指南 |
+| **[docs/SWARM_USAGE.md](docs/SWARM_USAGE.md)** | Swarm 详细使用指南 |
+| **[docs/SWARM_QUICK_REFERENCE.md](docs/SWARM_QUICK_REFERENCE.md)** | 快速参考卡片 |
+
+### 技术文档
+
+| 文档 | 说明 |
+|------|------|
+| **[docs/SWARM_IMPLEMENTATION_SUMMARY.md](docs/SWARM_IMPLEMENTATION_SUMMARY.md)** | Swarm 实施总结 |
+| **[docs/ARCHITECTURE_SUMMARY.md](docs/ARCHITECTURE_SUMMARY.md)** | 架构升级总结 |
+| **[docs/ARCHITECTURE_UPGRADE.md](docs/ARCHITECTURE_UPGRADE.md)** | 完整架构升级方案 |
+| **[docs/FILE_INDEX.md](docs/FILE_INDEX.md)** | 完整文件索引 |
+
+### 其他文档
+
+| 文档 | 说明 |
+|------|------|
+| **[docs/DEEP_PROTECTION.md](docs/DEEP_PROTECTION.md)** | 深度保护机制 |
+| **[docs/DEEP_PROTECTION_SUMMARY.md](docs/DEEP_PROTECTION_SUMMARY.md)** | 深度保护总结 |
+| **[docs/DEVOPS.md](docs/DEVOPS.md)** | DevOps 相关文档 |
+| **[docs/ENHANCED_CLI.md](docs/ENHANCED_CLI.md)** | 增强 CLI 功能 |
+| **[docs/INTEGRATION_REPORT.md](docs/INTEGRATION_REPORT.md)** | 集成报告 |
+| **[docs/QUICKSTART_ENHANCED.md](docs/QUICKSTART_ENHANCED.md)** | 快速开始（增强版） |
+
+## 🎯 核心功能
+
+### 1. CLI 交互模式
+
+```bash
+python cli.py
+# 直接输入任务，如：
+# "帮我写一个计算器"
+# "开发一个用户管理系统"
+```
+
+### 2. Swarm 群体智能
+
+多个 Agent 协作完成复杂任务：
 
 ```python
-from builtin_agents import create_builtin_agent
+from swarm import SwarmOrchestrator
 
-# 创建 CLI Agent
-cli_agent = create_builtin_agent("cli")
-
-# 或者创建 Planner Agent
-planner_agent = create_builtin_agent("planner")
+orchestrator = SwarmOrchestrator(agents=[...])
+result = await orchestrator.solve("开发完整的用户管理系统")
 ```
 
-## 配置说明
+### 3. 代码开发
 
-所有配置文件位于 `config/` 目录：
+Agent 自动编写代码并保存到 `output/` 目录：
 
-- `settings.yaml`: 通用设置（目录、API 密钥等）
-- `apis.yaml`: API 端点配置
-- `builtin_agents/configs/`: Agent 配置
+- ✅ 逐步写入机制
+- ✅ 任务依赖管理
+- ✅ 代码审查循环
+- ✅ 结对编程模式
 
-### settings.yaml 示例
+### 4. 输出管理
 
-```yaml
-directories:
-  agents: "./agents"
-  workflows: "./workflows"
-  output: "./cli_output"
-  sessions: "${HOME}/.simple-agent/sessions"
-
-agent:
-  max_iterations: 10
-
-llm:
-  default_model: "gpt-4o-mini"
-  api_base: "https://api.openai.com/v1"
-```
-
-### apis.yaml 示例
-
-```yaml
-bing_search:
-  url: "https://api.bing.microsoft.com/v7.0/search"
-
-google_search:
-  url: "https://customsearch.googleapis.com/customsearch/v1"
-```
-
-环境变量配置：
-
-- `OPENAI_API_KEY`: OpenAI API 密钥
-- `BING_SEARCH_API_KEY`: Bing 搜索 API 密钥
-- `OUTPUT_DIR`: 自定义输出目录
-
-## 内置 Agent
-
-### CLI Agent
-- 用户交互入口，处理简单问题和任务分发
-- 工具：WebSearchTool, GetCurrentDateTool, ExplainReasonTool, SupplementTool
-
-### Planner Agent
-- 复杂任务规划、多 Agent 协调、任务分解和分配
-
-### Developer Agent
-- 代码开发和实现、代码审查和修改、文档编写
-
-### Reviewer Agent
-- 代码质量检查、最佳实践验证、改进建议
-
-### Tester Agent
-- 测试用例生成、单元测试编写、集成测试设计
-
-## 工具系统
-
-### 内置工具
-
-- **文件操作**: `ReadFileTool`, `WriteFileTool`
-- **检查工具**: `CheckFileExistsTool`, `CheckContentTool`, `CheckPythonSyntaxTool`
-- **Agent 工具**: `InvokeAgentTool`, `CreateWorkflowTool`, `ListAgentsTool`
-- **搜索工具**: `WebSearchTool`
-- **时间工具**: `GetCurrentDateTool`
-- **补充工具**: `ExplainReasonTool`, `SupplementTool`
-- **输出管理**: `OutputManagerTool`
-
-### 自定义工具
-
-```python
-from core import BaseTool, ToolResult
-
-class MyCustomTool(BaseTool):
-    @property
-    def name(self) -> str:
-        return "MyCustomTool"
-    
-    @property
-    def description(self) -> str:
-        return "我的自定义工具描述"
-    
-    @property
-    def parameters(self) -> dict:
-        return {...}
-    
-    def execute(self, **kwargs) -> ToolResult:
-        # 实现工具逻辑
-        return ToolResult(success=True, output="结果")
-```
-
-## 自定义 Agent
-
-在 `custom_agents/` 目录创建 YAML 配置文件：
-
-```yaml
-name: My Custom Agent
-version: 1.0.0
-description: 我的自定义 Agent
-system_prompt: |
-  你是专业的自定义 Agent...
-tools:
-  - ReadFileTool
-  - WebSearchTool
-max_iterations: 10
-domains:
-  - software_engineering
-```
-
-## 会话管理
-
-会话自动保存到 `~/.simple-agent/sessions/` 目录。
-
-会话文件包含：
-- 对话历史
-- Agent 状态
-- 工具使用记录
-- 上下文信息
-
-## 输出管理
-
-任务执行结果按日期和项目分类保存在根目录的 `output/` 目录。
-
-### 目录结构
+所有生成的文件都保存到 `output/` 目录：
 
 ```
 output/
-├── 2026-03-06/
-│   ├── stock_analysis/
-│   │   ├── analysis_result.txt
-│   │   └── market_report.md
-│   └── code_review/
-│       └── review_summary.txt
-├── 2026-03-07/
-│   └── unclassified/
-│       └── task_143052.txt
-└── 2026-03-08/
-    └── research/
-        └── findings.json
+├── cli/           # CLI 任务输出
+├── swarm/         # Swarm 任务输出
+├── generated/     # 代码生成
+└── reports/       # 报告文件
 ```
 
-### OutputManagerTool 参数
+## 📁 项目结构
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| project | string | 否 | 项目名称，用于创建子目录 |
-| filename | string | 否 | 文件名（不含路径） |
-| content | string | 否 | 要保存的内容 |
-| file_type | string | 否 | 文件类型：txt/md/json/log，默认 txt |
+```
+simple-agent/
+├── README.md                  # 本文件
+├── docs/                      # 📚 所有文档
+├── core/                      # 核心模块
+│   ├── agent.py              # Agent 基类
+│   ├── llm.py                # LLM 接口
+│   └── ...
+├── swarm/                     # 🤖 Swarm 模块
+│   ├── orchestrator.py       # Swarm 控制器
+│   ├── blackboard.py         # 共享黑板
+│   └── ...
+├── tools/                     # 🔧 工具集
+│   ├── file.py               # 文件操作
+│   └── output_manager.py     # 输出管理
+├── cli.py                     # CLI 入口
+├── config/                    # 配置文件
+├── output/                    # 输出目录（自动生成）
+└── ...
+```
 
-### 查找输出文件
+## 🔧 高级配置
+
+### 自定义输出目录
 
 ```bash
-# 查看今天的输出
-ls output/$(date +%Y-%m-%d)/
-
-# 查找特定项目的输出
-find output/ -type d -name "stock_analysis"
-
-# 查找所有 Markdown 文件
-find output/ -name "*.md" -type f
+export CLI_OUTPUT_DIR="./my_output/cli"
+export SWARM_OUTPUT_DIR="./my_output/swarm"
+export GENERATED_CODE_DIR="./my_output/code"
 ```
 
-### 最佳实践
+### 验证配置
 
-- 为相关任务使用相同的项目名，便于查找
-- 使用描述性的文件名
-- 根据内容选择合适的文件类型（md/txt/json/log）
-- 按日期自动分类便于定期整理和归档
+```bash
+python scripts/verify_output_dirs.py
+```
 
-## 最佳实践
+## 🧪 测试
 
-1. **Agent 设计**: 每个 Agent 专注于单一职责
-2. **工具开发**: 保持工具原子性和可组合性
-3. **配置管理**: 使用环境变量管理敏感信息
-4. **会话恢复**: 定期保存重要会话状态
+```bash
+# 运行所有 Swarm 测试
+python scripts/run_all_tests.py
 
-## 故障排除
+# 单独运行测试
+python tests/test_swarm.py
+python tests/test_swarm_stage2.py
+python tests/test_scaling.py
+```
 
-### 常见问题
+## 🎓 学习路径
 
-1. **工具未找到**: 确保工具已正确注册到资源仓库
-2. **配置加载失败**: 检查 YAML 文件格式和环境变量
-3. **会话保存失败**: 确认存储目录权限和路径
+### 新手入门
 
-## 扩展性
+1. 阅读 [HOW_TO_USE_SWARM_IN_CLI.md](docs/HOW_TO_USE_SWARM_IN_CLI.md)
+2. 运行 `python cli.py` 体验
+3. 查看 [SWARM_QUICK_REFERENCE.md](docs/SWARM_QUICK_REFERENCE.md)
 
-系统设计具有良好的扩展性：
+### 深入学习
 
-- **添加 Agent**: 在 `custom_agents/` 创建 YAML 配置
-- **开发工具**: 实现 `BaseTool` 接口
-- **工作流模板**: 定义复杂执行流程
-- **集成服务**: 通过工具调用外部 API
+1. 阅读 [AGENT_CODE_DEVELOPMENT.md](docs/AGENT_CODE_DEVELOPMENT.md)
+2. 学习 [SWARM_USAGE.md](docs/SWARM_USAGE.md)
+3. 研究 [INCREMENTAL_CODE_WRITING.md](docs/INCREMENTAL_CODE_WRITING.md)
 
-## 注意事项
+### 掌握架构
 
-1. 首次使用需要配置 API 密钥
-2. 确保环境变量正确设置
-3. 工作流和 Agent 配置保存在本地
+1. 阅读 [ARCHITECTURE_UPGRADE.md](docs/ARCHITECTURE_UPGRADE.md)
+2. 查看 [ARCHITECTURE_SUMMARY.md](docs/ARCHITECTURE_SUMMARY.md)
+3. 参考 [FILE_INDEX.md](docs/FILE_INDEX.md)
 
-## 许可证
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+## 📄 许可证
 
 MIT License
+
+## 📞 支持
+
+如有问题，请查看：
+
+1. [docs/README.md](docs/README.md) - 文档总索引
+2. [docs/SWARM_USAGE.md](docs/SWARM_USAGE.md) - 使用指南
+3. [docs/OUTPUT_DIRECTORY.md](docs/OUTPUT_DIRECTORY.md) - 输出管理
+
+---
+
+**开始使用**: `python cli.py`  
+**查看所有文档**: [`docs/`](docs/)

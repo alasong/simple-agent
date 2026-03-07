@@ -46,7 +46,9 @@ from core.config_loader import get_config
 _config = get_config()
 AGENTS_DIR = _config.get('directories.agents', './agents')
 WORKFLOWS_DIR = _config.get('directories.workflows', './workflows')
-OUTPUT_DIR = _config.get('directories.output', './cli_output')
+# 所有输出都保存到 output/ 目录，不污染根目录
+OUTPUT_DIR = _config.get('directories.cli_output', './output/cli')
+OUTPUT_ROOT = _config.get('directories.output_root', './output')
 
 
 def setup_readline():

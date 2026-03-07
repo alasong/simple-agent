@@ -992,13 +992,20 @@ simple-agent/
 │   ├── reasoning_modes.py    # 高级推理模式 [新增]
 │   ├── skill_learning.py     # 技能学习 [新增]
 │   └── ...
-├── swarm/
-│   ├── __init__.py
-│   ├── orchestrator.py       # 群体控制器 [新增]
-│   ├── blackboard.py         # 共享黑板 [新增]
-│   ├── message_bus.py        # 消息总线 [新增]
+├── swarm/                      # Swarm 群体智能系统 [新增]
+│   ├── __init__.py             # 模块导出
+│   ├── orchestrator.py         # 群体控制器 (SwarmOrchestrator) [新增]
+│   ├── blackboard.py           # 共享黑板 (Blackboard) [新增]
+│   ├── message_bus.py          # 消息总线 (MessageBus) [新增]
+│   ├── scheduler.py            # 任务调度器 (TaskScheduler, TaskDecomposer) [新增]
 │   ├── collaboration_patterns.py  # 协作模式 [新增]
-│   └── scaling.py            # 动态扩展 [新增]
+│   └── scaling.py              # 动态扩展 [待实施]
+├── tests/
+│   ├── test_stage1.py          # 阶段 1 单元测试
+│   ├── test_swarm.py           # Swarm 组件单元测试
+│   └── test_swarm_stage2.py    # 阶段 2 功能测试
+├── examples/
+│   └── demo_swarm.py           # Swarm 功能演示
 ├── builtin_agents/
 ├── tools/
 └── ...
@@ -1305,4 +1312,249 @@ echo "=== 阶段 1 实施完成 ==="
 
 - [ ] 集成 EnhancedAgent 到 CLI
 - [ ] 添加向量数据库长期记忆支持
-- [ ] 实施阶段 2：Swarm 核心
+- [x] 实施阶段 2：Swarm 核心
+
+---
+
+## 阶段 2 实施状态
+
+**状态**: ✅ 已完成
+
+**实施日期**: 2026-03-07
+
+### 已创建文件
+
+- ✅ `swarm/__init__.py` - Swarm 模块导出
+- ✅ `swarm/orchestrator.py` - 群体智能控制器 (SwarmOrchestrator)
+- ✅ `swarm/blackboard.py` - 共享黑板 (Blackboard)
+- ✅ `swarm/message_bus.py` - 消息总线 (MessageBus)
+- ✅ `swarm/scheduler.py` - 任务调度器 (TaskScheduler, TaskDecomposer, TaskGraph)
+- ✅ `swarm/collaboration_patterns.py` - 协作模式 (PairProgramming, SwarmBrainstorming, MarketBasedAllocation, CodeReviewLoop)
+- ✅ `swarm/scaling.py` - 动态扩展 (DynamicScaling, AutoScalingOrchestrator) [新增]
+- ✅ `tests/test_swarm.py` - Swarm 组件单元测试 (19 个测试用例)
+- ✅ `tests/test_swarm_stage2.py` - 阶段 2 功能测试 (6 个测试用例)
+- ✅ `tests/test_scaling.py` - 动态扩展测试 (5 个测试用例)
+- ✅ `examples/demo_swarm.py` - Swarm 功能演示脚本
+
+### 测试结果
+
+```
+============================================================
+Swarm 组件测试
+============================================================
+✓ Blackboard 测试通过 (5 个测试)
+✓ MessageBus 测试通过 (2 个测试)
+✓ Task 测试通过 (3 个测试)
+✓ TaskGraph 测试通过 (2 个测试)
+✓ TaskScheduler 测试通过 (2 个测试)
+✓ SwarmOrchestrator 测试通过 (2 个测试)
+✓ Collaboration Patterns 测试通过 (3 个测试)
+============================================================
+Ran 19 tests in 0.408s
+OK
+所有测试通过！
+============================================================
+```
+
+```
+============================================================
+阶段 2 功能测试 - Swarm 核心
+============================================================
+✓ Blackboard 测试通过
+✓ MessageBus 测试通过
+✓ TaskScheduler 测试通过
+✓ SwarmOrchestrator 测试通过
+✓ Collaboration Patterns 测试通过
+✓ Integration 测试通过
+============================================================
+测试完成：6 通过，0 失败
+============================================================
+```
+
+### 核心功能
+
+#### 1. SwarmOrchestrator (群体智能控制器)
+- 任务自动分解（依赖 LLM）
+- 任务依赖图管理
+- 并行执行调度
+- 结果汇总
+
+#### 2. Blackboard (共享黑板)
+- 所有 Agent 可读写
+- 变更历史记录
+- 任务上下文提供
+- 订阅/通知机制
+
+#### 3. MessageBus (消息总线)
+- 发布/订阅模式
+- 主题路由
+- 广播通信
+- 异步消息处理
+
+#### 4. TaskScheduler (任务调度器)
+- 基于技能匹配 Agent
+- 负载均衡
+- 任务依赖检查
+- 自动重试机制
+
+#### 5. Collaboration Patterns (协作模式)
+- **PairProgramming**: 结对编程（Driver + Navigator）
+- **SwarmBrainstorming**: 群体头脑风暴
+- **MarketBasedAllocation**: 基于市场的任务分配
+- **CodeReviewLoop**: 代码审查循环
+
+#### 6. DynamicScaling (动态扩展) [新增]
+- 自动监控负载指标
+- 根据瓶颈技能扩展 Agent
+- 自动缩减空闲 Agent
+- 可配置的扩展策略
+- 事件回调支持
+
+### 演示脚本
+- 所有 Agent 可读写
+- 变更历史记录
+- 任务上下文提供
+- 订阅/通知机制
+
+#### 3. MessageBus (消息总线)
+- 发布/订阅模式
+- 主题路由
+- 广播通信
+- 异步消息处理
+
+#### 4. TaskScheduler (任务调度器)
+- 基于技能匹配 Agent
+- 负载均衡
+- 任务依赖检查
+- 自动重试机制
+
+#### 5. Collaboration Patterns (协作模式)
+- **PairProgramming**: 结对编程（Driver + Navigator）
+- **SwarmBrainstorming**: 群体头脑风暴
+- **MarketBasedAllocation**: 基于市场的任务分配
+- **CodeReviewLoop**: 代码审查循环
+
+### 演示脚本
+
+运行 `examples/demo_swarm.py` 可查看所有功能的演示：
+
+```bash
+python examples/demo_swarm.py
+```
+
+演示内容包括：
+- 共享黑板通信
+- 基本的 Swarm 任务执行
+- 结对编程
+- 群体头脑风暴
+- 市场分配
+- 代码审查循环
+
+### 测试结果
+
+```
+============================================================
+动态扩展测试
+============================================================
+✓ ScalingMetrics 测试通过
+✓ AgentFactory 测试通过
+✓ DynamicScaling 测试通过
+✓ AutoScalingOrchestrator 结构测试通过
+✓ Scaling 回调测试通过
+============================================================
+测试完成：5 通过，0 失败
+============================================================
+```
+
+### 下一步
+
+运行 `examples/demo_swarm.py` 可查看所有功能的演示：
+
+```bash
+python examples/demo_swarm.py
+```
+
+演示内容包括：
+- 共享黑板通信
+- 基本的 Swarm 任务执行
+- 结对编程
+- 群体头脑风暴
+- 市场分配
+- 代码审查循环
+
+### 下一步
+
+- [ ] 集成 SwarmOrchestrator 到 CLI
+- [x] 实现动态 Agent 扩展 (阶段 3 部分完成)
+- [ ] 添加监控和可观测性
+- [ ] 实现更多的协作模式
+
+---
+
+## 阶段 3 部分实施状态
+
+**状态**: 🔄 进行中 (动态扩展已完成)
+
+**实施日期**: 2026-03-07
+
+### 已完成功能
+
+- ✅ `swarm/scaling.py` - 动态扩展系统
+  - `ScalingMetrics`: 扩展指标数据结构
+  - `AgentFactory`: Agent 工厂模式
+  - `DynamicScaling`: 动态扩展控制器
+  - `AutoScalingOrchestrator`: 自动扩展包装器
+
+### 待完成功能
+
+- [ ] 监控和可观测性
+  - [ ] Prometheus 指标导出
+  - [ ] Grafana 仪表板
+  - [ ] 分布式追踪
+- [ ] 更多协作模式
+  - [ ] 投票决策模式
+  - [ ] 分层管理模式
+  - [ ] 竞争模式
+- [ ] 性能优化
+  - [ ] 异步 Agent 执行
+  - [ ] 连接池管理
+  - [ ] 缓存优化
+
+### 已安装依赖
+
+- chromadb >= 0.4.0 (阶段 1)
+- numpy >= 1.24.0 (阶段 1)
+
+---
+
+## 总结
+
+**阶段 1**: ✅ 完成 - Agent 能力增强
+**阶段 2**: ✅ 完成 - Swarm 核心功能
+**阶段 3**: 🔄 进行中 - 动态扩展已完成，监控和可观测性待实施
+
+### 代码统计
+
+| 模块 | 文件数 | 代码行数 | 测试用例 |
+|------|--------|---------|---------|
+| core (阶段 1) | 4 | ~1000 | 3 |
+| swarm (阶段 2) | 6 | ~1600 | 25 |
+| scaling (阶段 3) | 1 | ~300 | 5 |
+| **总计** | **11** | **~2900** | **33** |
+
+### 运行所有测试
+
+```bash
+# 阶段 1 测试
+python tests/test_stage1.py
+
+# 阶段 2 测试
+python tests/test_swarm.py
+python tests/test_swarm_stage2.py
+
+# 阶段 3 测试
+python tests/test_scaling.py
+
+# 运行演示
+python examples/demo_swarm.py
+```
