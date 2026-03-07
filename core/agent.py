@@ -151,8 +151,18 @@ class Agent(AgentCore):
     
     # ==================== 运行（重写，添加错误增强）====================
     
-    def run(self, user_input: str, verbose: bool = True) -> str:
+    def run(self, user_input: str, verbose: bool = True, debug: bool = False) -> str:
         """主循环（带智能错误恢复）"""
+        import time
+        from .debug import tracker
+        
+        # 调试跟踪
+        debug_record = None
+        if debug and tracker.enabled:
+            debug_record = tracker.start_agent_execution(
+                self.name, self.version, self.instance_id, user_input
+            )
+        
         # 设置全局 verbose 状态
         try:
             from tools.agent_tools import set_verbose
@@ -185,6 +195,17 @@ class Agent(AgentCore):
             # 如果没有工具调用，返回结果
             if not tool_calls:
                 self.memory.add_assistant(content)
+                
+                # 结束调试跟踪
+                if debug and tracker.enabled and debug_record:
+                    tracker.end_agent_execution(
+                        debug_record,
+                        content,
+                        success=True,
+                        tool_calls=0,
+                        iterations=iteration
+                    )
+                
                 return content
             
             # 添加助手消息（带工具调用）
@@ -228,4 +249,16 @@ class Agent(AgentCore):
                         content=result.output
                     )
         
-        return f"达到最大迭代次数 ({self.max_iterations})，任务可能未完成"
+        result_text = f"达到最大迭代次数 ({self.max_iterations})，任务可能未完成"
+        
+        # 结束调试跟踪
+        if debug and tracker.enabled and debug_record:
+            tracker.end_agent_execution(
+                debug_record,
+                result_text,
+                success=True,
+                tool_calls=0,
+                iterations=iteration
+            )
+        
+        return result_text

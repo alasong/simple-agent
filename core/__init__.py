@@ -46,6 +46,16 @@ from .strategies import (
 )
 from .async_adapter import AsyncAgentAdapter
 
+# 调试支持
+from .debug import (
+    enable_debug,
+    disable_debug,
+    get_debug_summary,
+    print_debug_summary,
+    DebugTracker,
+    tracker
+)
+
 # 增强功能 (阶段 1)
 from .memory_enhanced import EnhancedMemory, Experience
 from .reasoning_modes import TreeOfThought, ReflectionLoop
@@ -116,4 +126,12 @@ __all__ = [
     "ReflectionLoop",
     "SkillLibrary",
     "Skill",
+    
+    # 调试支持
+    "enable_debug",
+    "disable_debug",
+    "get_debug_summary",
+    "print_debug_summary",
+    "DebugTracker",
+    "tracker",
 ]

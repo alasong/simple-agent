@@ -70,7 +70,8 @@ class WorkflowStep:
     result_type: ResultType = ResultType.AUTO  # 结果类型
     
     def run(self, context: Dict, shared_memory: bool = True, verbose: bool = True,
-            output_dir: Optional[str] = None, step_index: int = 0) -> Dict:
+            output_dir: Optional[str] = None, step_index: int = 0,
+            debug: bool = False) -> Dict:
         """
         执行步骤
         
@@ -78,8 +79,9 @@ class WorkflowStep:
             context: 工作流上下文
             shared_memory: 是否共享上下文到 Agent memory
             verbose: 是否打印详细过程
-            output_dir: 输出目录（如果指定，将结果保存到文件）
-            step_index: 步骤序号（用于文件命名）
+            output_dir: 输出目录
+            step_index: 步骤序号
+            debug: 是否启用调试跟踪
         """
         # 构建输入
         if self.input_key:
@@ -105,7 +107,7 @@ class WorkflowStep:
                 print(f"[Workflow] 实例 ID: {self.instance_id}")
             print(f"{'='*50}")
         
-        result_text = self.agent.run(user_input, verbose=verbose)
+        result_text = self.agent.run(user_input, verbose=verbose, debug=debug)
         
         # 解析结果
         step_result = self._parse_result(result_text)
@@ -368,7 +370,8 @@ class Workflow:
         initial_input: str, 
         verbose: bool = True, 
         output_dir: Optional[str] = None,
-        isolate_by_instance: bool = False
+        isolate_by_instance: bool = False,
+        debug: bool = False
     ) -> Dict:
         """
         执行工作流
@@ -376,12 +379,23 @@ class Workflow:
         Args:
             initial_input: 初始输入
             verbose: 是否打印详细过程
-            output_dir: 输出目录（如果指定，将各步骤结果保存到文件）
+            output_dir: 输出目录
             isolate_by_instance: 是否按 instance_id 隔离输出目录
+            debug: 是否启用调试跟踪
         
         Returns:
             执行上下文（包含所有步骤的输出）
         """
+        import time
+        from .debug import tracker
+        
+        # 调试跟踪
+        workflow_record = None
+        if debug and tracker.enabled:
+            workflow_record = tracker.start_workflow_execution(
+                self.name, self.description, initial_input
+            )
+        
         # 初始化上下文
         self.context = {
             "_initial_input": initial_input,
@@ -433,13 +447,36 @@ class Workflow:
                     print(f"[Workflow] 实例 {step.instance_id} 输出目录：{step_output_dir}")
             
             # 执行步骤，传入输出目录
+            step_start = time.time()
             self.context = step.run(
                 self.context, 
                 shared_memory=self.shared_memory,
                 verbose=verbose,
                 output_dir=step_output_dir,
-                step_index=i
+                step_index=i,
+                debug=debug
             )
+            step_end = time.time()
+            
+            # 记录步骤执行
+            if debug and tracker.enabled and workflow_record:
+                step_input = str(self.context.get("_last_output", ""))
+                step_output = str(self.context.get(step.output_key, ""))
+                tracker.add_workflow_step(
+                    workflow_record,
+                    step.name,
+                    i,
+                    step.agent.name,
+                    step.instance_id,
+                    step.input_key,
+                    step.output_key,
+                    step_input,
+                    step_output,
+                    step_start,
+                    step_end
+                )
+        
+        final_output = str(self.context.get("_last_output", ""))
         
         if verbose:
             print(f"\n{'#'*50}")
@@ -449,6 +486,14 @@ class Workflow:
                 if isolate_by_instance:
                     print(f"# 各实例输出已隔离到对应子目录")
             print(f"{'#'*50}")
+        
+        # 结束调试跟踪
+        if debug and tracker.enabled and workflow_record:
+            tracker.end_workflow_execution(
+                workflow_record,
+                final_output,
+                success=True
+            )
         
         return self.context
     

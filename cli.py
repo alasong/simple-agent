@@ -32,6 +32,13 @@ from core import (
     SkillLibrary
 )
 
+# Debug tracking imports
+try:
+    from core import enable_debug, disable_debug, get_debug_summary, print_debug_summary, tracker
+    DEBUG_AVAILABLE = True
+except ImportError:
+    DEBUG_AVAILABLE = False
+
 # 富文本输出支持
 try:
     from core.rich_output import get_rich_output, RichOutput
@@ -52,21 +59,52 @@ skill_library = None
 # 默认保存目录（从统一配置加载）
 from core.config_loader import get_config
 _config = get_config()
-AGENTS_DIR = _config.get('directories.agents', './agents')
-WORKFLOWS_DIR = _config.get('directories.workflows', './workflows')
+
+# 转换为绝对路径，确保目录正确
+AGENTS_DIR = os.path.abspath(_config.get('directories.agents', './agents'))
+WORKFLOWS_DIR = os.path.abspath(_config.get('directories.workflows', './workflows'))
 # 所有输出都保存到 output/ 目录，不污染根目录
-OUTPUT_DIR = _config.get('directories.cli_output', './output/cli')
-OUTPUT_ROOT = _config.get('directories.output_root', './output')
+OUTPUT_DIR = os.path.abspath(_config.get('directories.cli_output', './output/cli'))
+OUTPUT_ROOT = os.path.abspath(_config.get('directories.output_root', './output'))
+
+# 测试脚本防护：检测是否在测试环境中运行
+def is_test_environment():
+    """检测是否在测试环境中运行"""
+    import sys
+    # 检查是否在 pytest 或 unittest 中运行
+    if any(mod.startswith('pytest') or mod.startswith('unittest') for mod in sys.modules):
+        return True
+    # 检查命令行参数
+    if any('test' in arg.lower() for arg in sys.argv):
+        return True
+    # 检查环境变量
+    if os.environ.get('TESTING') or os.environ.get('PYTEST_CURRENT_TEST'):
+        return True
+    return False
+
+# 如果在测试环境中，使用临时目录
+if is_test_environment():
+    import tempfile
+    _temp_dir = tempfile.mkdtemp(prefix='cli_test_')
+    AGENTS_DIR = os.path.join(_temp_dir, 'agents')
+    WORKFLOWS_DIR = os.path.join(_temp_dir, 'workflows')
+    OUTPUT_DIR = os.path.join(_temp_dir, 'output', 'cli')
+    OUTPUT_ROOT = os.path.join(_temp_dir, 'output')
+    # 创建临时目录
+    os.makedirs(AGENTS_DIR, exist_ok=True)
+    os.makedirs(WORKFLOWS_DIR, exist_ok=True)
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    os.makedirs(OUTPUT_ROOT, exist_ok=True)
 
 
 def setup_readline():
     """设置自动补全"""
     commands = [
         "/new ", "/update ", "/switch ", "/list", "/info", 
-        "/clear", "/save", "/load ", "/workflow ", "/debug", 
+        "/clear", "/save", "/load ", "/workflow ", "/debug",
         "/isolate", "/help", "/exit",
         "/enhanced ", "/memory", "/skills", "/reasoning ",
-        "/review "
+        "/review ", "/debug summary", "/debug stats"
     ]
     
     def completer(text, state):
@@ -160,10 +198,12 @@ def show_help():
 /clear             清空当前会话记忆
 
 ===== 智能模式 =====
-/help           显示帮助
-/exit           退出
-/debug [on|off] 切换调试模式
-/isolate [on|off] 切换隔离模式（默认开启）
+/help              显示帮助
+/exit              退出
+/debug [on|off]    切换调试模式（默认已开启）
+/debug summary     显示调试摘要（Agent/Workflow 执行统计）
+/debug stats       显示详细统计信息
+/isolate [on|off]  切换隔离模式（默认开启）
 
 ===== 后台任务管理 =====
 /bg <任务>       后台执行任务，立即返回（不阻塞）
@@ -371,6 +411,10 @@ def interactive_mode():
     # 初始化增强型 Agent（阶段 1）
     init_enhanced_agent()
     
+    # 默认启用 debug 模式
+    from core import enable_debug
+    enable_debug(verbose=True)
+    
     print()
     print(f"{'='*60}")
     print("CLI Agent - 智能任务助手")
@@ -382,10 +426,12 @@ def interactive_mode():
     print("  - /load developer: 切换到单 Agent 模式")
     print("  - /workflow xxx.json: 运行工作流")
     print("\n默认设置:")
-    print("  - 隔离模式：已开启 (每个 agent 输出到独立子目录)")
+    print("  - 隔离模式：✓ 已开启 (每个 agent 输出到独立子目录)")
+    print("  - 调试模式：✓ 已开启 (显示详细执行过程)")
+    print("  - 使用 /debug off 可关闭调试模式")
     
     # 状态
-    debug_mode = False
+    debug_mode = True  # 默认开启 debug 模式
     isolate_mode = True  # 默认开启隔离模式
     
     while True:
@@ -554,13 +600,118 @@ def interactive_mode():
         
         elif user_input.startswith("/debug"):
             parts = user_input.split()
-            if len(parts) > 1:
-                debug_mode = parts[1].lower() in ["on", "true", "1"]
+            
+            # 处理子命令
+            if len(parts) >= 2:
+                subcommand = parts[1].lower()
+                
+                if subcommand == "summary":
+                    # 显示调试摘要
+                    if not DEBUG_AVAILABLE:
+                        print("[错误] 调试模块不可用")
+                    else:
+                        print(f"\n{'='*60}")
+                        print(f"调试执行摘要")
+                        print(f"{'='*60}")
+                        print_debug_summary()
+                
+                elif subcommand == "stats":
+                    # 显示详细统计
+                    if not DEBUG_AVAILABLE:
+                        print("[错误] 调试模块不可用")
+                    else:
+                        print(f"\n{'='*60}")
+                        print(f"详细统计信息")
+                        print(f"{'='*60}")
+                        
+                        # Agent 统计
+                        agent_stats = tracker.get_agent_stats()
+                        if agent_stats and agent_stats.get('count', 0) > 0:
+                            print(f"\n📊 Agent 执行统计:")
+                            print(f"  总执行次数：{agent_stats.get('count', 0)}")
+                            print(f"  成功：{agent_stats.get('successful', 0)}")
+                            print(f"  失败：{agent_stats.get('failed', 0)}")
+                            if agent_stats.get('count', 0) > 0:
+                                print(f"  成功率：{agent_stats.get('success_rate', 0):.1%}")
+                                print(f"  平均耗时：{agent_stats.get('avg_duration', 0):.3f}秒")
+                            
+                            # 按 Agent 分类统计
+                            if 'by_agent' in agent_stats and agent_stats['by_agent']:
+                                print(f"\n  按 Agent 分类:")
+                                for agent_name, stats in agent_stats['by_agent'].items():
+                                    print(f"    - {agent_name}:")
+                                    print(f"        执行：{stats.get('count', 0)} 次")
+                                    print(f"        平均耗时：{stats.get('avg_duration', 0):.3f}秒")
+                                    print(f"        工具调用：{stats.get('total_tool_calls', 0)} 次")
+                        else:
+                            print("\n暂无 Agent 执行记录")
+                        
+                        # Workflow 统计
+                        workflow_stats = tracker.get_workflow_stats()
+                        if workflow_stats and workflow_stats.get('count', 0) > 0:
+                            print(f"\n📊 Workflow 执行统计:")
+                            print(f"  总执行次数：{workflow_stats.get('count', 0)}")
+                            print(f"  成功：{workflow_stats.get('successful', 0)}")
+                            print(f"  失败：{workflow_stats.get('failed', 0)}")
+                            if workflow_stats.get('count', 0) > 0:
+                                print(f"  成功率：{workflow_stats.get('success_rate', 0):.1%}")
+                                print(f"  平均耗时：{workflow_stats.get('avg_duration', 0):.3f}秒")
+                                print(f"  总步骤数：{workflow_stats.get('total_steps', 0)}")
+                                print(f"  步骤成功率：{workflow_stats.get('step_success_rate', 0):.1%}")
+                            
+                            # 按 Workflow 分类统计
+                            if 'by_workflow' in workflow_stats and workflow_stats['by_workflow']:
+                                print(f"\n  按 Workflow 分类:")
+                                for workflow_name, stats in workflow_stats['by_workflow'].items():
+                                    print(f"    - {workflow_name}:")
+                                    print(f"        执行：{stats.get('count', 0)} 次")
+                                    print(f"        平均步骤：{stats.get('avg_steps', 0):.1f}")
+                                    print(f"        平均耗时：{stats.get('avg_duration', 0):.3f}秒")
+                        else:
+                            print("\n暂无 Workflow 执行记录")
+                        
+                        print(f"\n{'='*60}")
+                
+                elif subcommand in ["on", "off", "true", "1", "false", "0"]:
+                    # 传统用法：/debug on|off
+                    debug_mode = subcommand in ["on", "true", "1"]
+                    print(f"调试模式：{'已开启' if debug_mode else '已关闭'}")
+                    if debug_mode:
+                        print(f"输出目录：{OUTPUT_DIR}")
+                        if DEBUG_AVAILABLE:
+                            enable_debug(verbose=True)
+                            print(f"调试跟踪器：已启用")
+                    else:
+                        if DEBUG_AVAILABLE:
+                            disable_debug()
+                            print(f"调试跟踪器：已禁用")
+                
+                else:
+                    # 切换模式
+                    debug_mode = not debug_mode
+                    print(f"调试模式：{'已开启' if debug_mode else '已关闭'}")
+                    if debug_mode:
+                        print(f"输出目录：{OUTPUT_DIR}")
+                        if DEBUG_AVAILABLE:
+                            enable_debug(verbose=True)
+                            print(f"调试跟踪器：已启用 (verbose=True)")
+                    else:
+                        if DEBUG_AVAILABLE:
+                            disable_debug()
+                            print(f"调试跟踪器：已禁用")
             else:
+                # 只输入 /debug，切换模式
                 debug_mode = not debug_mode
-            print(f"调试模式：{'已开启' if debug_mode else '已关闭'}")
-            if debug_mode:
-                print(f"输出目录：{OUTPUT_DIR}")
+                print(f"调试模式：{'已开启' if debug_mode else '已关闭'}")
+                if debug_mode:
+                    print(f"输出目录：{OUTPUT_DIR}")
+                    if DEBUG_AVAILABLE:
+                        enable_debug(verbose=True)
+                        print(f"调试跟踪器：已启用 (verbose=True)")
+                else:
+                    if DEBUG_AVAILABLE:
+                        disable_debug()
+                        print(f"调试跟踪器：已禁用")
         
         elif user_input.startswith("/isolate"):
             parts = user_input.split()
@@ -1072,6 +1223,10 @@ def main():
     global cli_agent
     cli_agent = cli
     
+    # 默认启用 debug 模式
+    from core import enable_debug
+    enable_debug(verbose=True)
+    
     # 确定输出目录
     output_dir = None
     if args.debug or args.output:
@@ -1085,12 +1240,14 @@ def main():
         if RICH_AVAILABLE:
             from core.rich_output import print_header, print_info
             print_header("CLI Agent 执行任务", task[:60])
+            print_info(f"调试模式：已启用 (默认)")
             if output_dir:
                 print_info(f"输出目录：{output_dir}")
                 if args.isolate:
                     print_info(f"隔离模式：已开启")
         else:
             print(f"[CLI Agent] 执行任务：{task}")
+            print(f"[CLI Agent] 调试模式：已启用 (默认)")
             if output_dir:
                 print(f"[CLI Agent] 输出目录：{output_dir}")
                 if args.isolate:
