@@ -6,13 +6,16 @@ CLI Agent - 统一的用户交互入口
 2. 判断简单/复杂任务
 3. 简单任务：直接回答
 4. 复杂任务：委托给 Planner Agent 处理
+5. 支持输出保存到文件
 
 配置驱动：从 builtin_agents/configs/cli.json 加载
 支持会话记忆：保持多轮对话上下文
 """
 
 import asyncio
+import os
 import time
+from datetime import datetime
 from typing import Optional, Any
 
 # 先导入工具模块，确保工具注册到资源仓库
@@ -22,6 +25,9 @@ from core.llm import OpenAILLM
 from core.config_loader import get_config
 from core.task_queue import TaskQueue
 from core.task_handle import TaskHandle
+
+# 导入提示词配置，避免硬编码
+from configs.cli_prompts import PromptTemplates, WeekdayConfig
 
 
 class CLIAgent:
@@ -222,38 +228,58 @@ class CLIAgent:
         
         if not is_complex:
             # 2. 简单任务：使用 CLI Agent 直接回答
-            return self._handle_simple_task(user_input, verbose)
+            return self._handle_simple_task(user_input, verbose, output_dir, isolate_by_instance)
         else:
             # 3. 复杂任务：委托给 Planner Agent
             return self._handle_complex_task(user_input, verbose, output_dir, isolate_by_instance)
     
-    def _handle_simple_task(self, user_input: str, verbose: bool = True) -> Any:
+    def _handle_simple_task(self, user_input: str, verbose: bool = True, 
+                           output_dir: Optional[str] = None,
+                           isolate_by_instance: bool = False) -> Any:
         """处理简单任务"""
         if verbose:
             print(f"\n[CLI Agent] 使用 CLI Agent 处理简单任务...")
         
-        # 检测是否需要实时信息
-        date_keywords = ["今天", "日期", "几号", "星期", "时间", "现在几点"]
-        realtime_keywords = [
-            "新闻", "头条", "最新", "股价", "比分", "排名", "热搜", "疫情"
-        ]
-        weather_keywords = ["天气", "气温", "下雨", "刮风", "雾霾", "空气质量"]
-        
-        # 如果查询包含日期关键词，使用 GetCurrentDateTool
+        # 检测是否需要实时信息（使用配置中的关键词）
         enhanced_input = user_input
-        if any(kw in user_input for kw in date_keywords):
-            enhanced_input = f"{user_input}（请使用 GetCurrentDateTool 获取当前日期）"
-        elif any(kw in user_input for kw in weather_keywords):
-            enhanced_input = f"{user_input}（请使用 WebSearchTool 搜索，设置 fetch_content=true 获取详细天气信息）"
-        elif any(kw in user_input for kw in realtime_keywords):
-            enhanced_input = f"{user_input}（请使用 WebSearchTool 搜索获取最新信息）"
+        
+        # 日期查询
+        if any(kw in user_input for kw in PromptTemplates.DATE_KEYWORDS):
+            enhanced_input = f"{user_input}{PromptTemplates.DATE_QUERY_PROMPT}"
+        
+        # 天气查询：直接从系统获取当前日期（更可靠，避免 LLM 编造）
+        elif any(kw in user_input for kw in PromptTemplates.WEATHER_KEYWORDS):
+            if verbose:
+                print(PromptTemplates.LOG_WEATHER_DETECTION)
+            
+            # 直接从系统获取日期，避免 LLM 编造
+            now = datetime.now()
+            weekday_str = WeekdayConfig.get_weekday(now.weekday())
+            current_date_str = f"{now.year}年{now.month}月{now.day}日，{weekday_str}"
+            
+            if verbose:
+                print(PromptTemplates.get_date_log(current_date_str))
+            
+            # 将准确日期注入到提示词
+            prompt_suffix = PromptTemplates.get_weather_prompt(current_date_str)
+            enhanced_input = f"{user_input}{prompt_suffix}"
+        
+        # 实时信息查询
+        elif any(kw in user_input for kw in PromptTemplates.REALTIME_KEYWORDS):
+            enhanced_input = f"{user_input}{PromptTemplates.REALTIME_PROMPT_TEMPLATE}"
         
         result = self.agent.run(enhanced_input, verbose=verbose)
+        
+        # 保存输出到文件，并获取保存的路径
+        saved_path = None
+        if output_dir:
+            saved_path = self._save_output(output_dir, result, user_input, isolate_by_instance)
         
         if verbose:
             print(f"\n[CLI Agent] 任务完成")
         
-        return result
+        # 返回结果和保存路径
+        return result, saved_path
     
     def _handle_complex_task(self, user_input: str, verbose: bool = True,
                              output_dir: Optional[str] = None,
@@ -268,10 +294,75 @@ class CLIAgent:
         # Planner Agent 负责处理复杂任务
         result = planner.run(user_input, verbose=verbose)
         
+        # 保存输出到文件，并获取保存的路径
+        saved_path = None
+        if output_dir:
+            saved_path = self._save_output(output_dir, result, user_input, isolate_by_instance)
+        
         if verbose:
             print(f"\n[CLI Agent] 复杂任务处理完成")
         
-        return result
+        # 返回结果和保存路径
+        return result, saved_path
+    
+    def _save_output(self, output_dir: str, result: Any, user_input: str,
+                    isolate_by_instance: bool = False) -> Optional[str]:
+        """保存输出到文件
+        
+        Returns:
+            保存的文件路径，如果未保存则返回 None
+        """
+        # 测试环境防护：检测是否在测试环境中运行
+        def is_test_environment():
+            """检测是否在测试环境中运行"""
+            import sys
+            # 检查是否在 pytest 或 unittest 中运行
+            if any(mod.startswith('pytest') or mod.startswith('unittest') for mod in sys.modules):
+                return True
+            # 检查环境变量
+            if os.environ.get('TESTING') or os.environ.get('PYTEST_CURRENT_TEST'):
+                return True
+            return False
+        
+        # 在测试环境中跳过文件保存
+        if is_test_environment():
+            if os.environ.get('DEBUG_SAVE_OUTPUT'):
+                # 如果显式要求保存，则继续
+                pass
+            else:
+                # 否则跳过保存，避免污染文件系统
+                return None
+        
+        try:
+            # 创建输出目录
+            if isolate_by_instance and hasattr(self.agent, 'instance_id') and self.agent.instance_id:
+                # 按实例 ID 隔离
+                output_path = os.path.join(output_dir, self.agent.instance_id)
+            else:
+                # 使用任务前缀作为目录名
+                task_prefix = user_input[:20].replace('/', '_').replace('\\', '_').replace(' ', '_')
+                output_path = os.path.join(output_dir, task_prefix)
+            
+            os.makedirs(output_path, exist_ok=True)
+            
+            # 生成文件名
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            output_file = os.path.join(output_path, f'result_{timestamp}.txt')
+            
+            # 保存结果
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.write(f"# 任务输入\n{user_input}\n\n")
+                f.write(f"# 执行时间\n{datetime.now().isoformat()}\n\n")
+                f.write(f"# 执行结果\n{result}\n")
+            
+            print(f"\n[输出] 已保存到：{output_file}")
+            
+            # 返回保存的目录路径，用于在 cli.py 中显示
+            return output_path
+        
+        except Exception as e:
+            print(f"\n[警告] 保存输出失败：{e}")
+            return None
     
     async def _ensure_queue_started(self):
         """确保任务队列已启动"""

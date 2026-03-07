@@ -873,11 +873,10 @@ def interactive_mode():
                 print("示例：/bg 分析这个项目")
                 continue
             
-            # 确定输出目录
+            # 确定输出目录 - 只传递基础目录，让_save_output 创建具体任务子目录
             output_dir = None
             if debug_mode:
-                task_prefix = task[:20].replace('/', '_').replace('\\', '_')
-                output_dir = f"{OUTPUT_DIR}/{task_prefix}"
+                output_dir = OUTPUT_DIR
             
             try:
                 import asyncio
@@ -1151,19 +1150,25 @@ def interactive_mode():
                 if not cli_agent:
                     cli_agent = CLIAgent()
                 
-                # 确定输出目录
+                # 确定输出目录 - 只传递基础目录，让_save_output 创建具体任务子目录
                 output_dir = None
                 if debug_mode:
-                    task_prefix = user_input[:20].replace('/', '_').replace('\\', '_')
-                    output_dir = f"{OUTPUT_DIR}/{task_prefix}"
+                    output_dir = OUTPUT_DIR
                 
                 try:
-                    result = cli_agent.execute(
+                    result_tuple = cli_agent.execute(
                         user_input,
                         verbose=True,
                         output_dir=output_dir,
                         isolate_by_instance=isolate_mode
                     )
+                    
+                    # 解包结果和保存路径
+                    if isinstance(result_tuple, tuple) and len(result_tuple) == 2:
+                        result, saved_path = result_tuple
+                    else:
+                        result = result_tuple
+                        saved_path = None
                     
                     # 使用富文本展示结果
                     if RICH_AVAILABLE:
@@ -1180,15 +1185,12 @@ def interactive_mode():
                         print(f"结果：{result}")
                         print(f"{'='*60}")
                     
-                    if output_dir:
+                    # 显示保存路径
+                    if saved_path:
                         if RICH_AVAILABLE:
-                            print_info(f"输出已保存到：{output_dir}")
-                            if isolate_mode:
-                                print_info(f"已按实例 ID 隔离到子目录")
+                            print_info(f"输出已保存到：{saved_path}")
                         else:
-                            print(f"\n[Debug] 输出已保存到：{output_dir}")
-                            if isolate_mode:
-                                print(f"[Debug] 已按实例 ID 隔离到子目录")
+                            print(f"\n[Debug] 输出已保存到：{saved_path}")
                     
                     # 保存会话
                     from core.session import save_session
@@ -1254,12 +1256,19 @@ def main():
                     print(f"[CLI Agent] 隔离模式：已开启")
         
         try:
-            result = cli.execute(
+            result_tuple = cli.execute(
                 task,
                 verbose=args.verbose,
                 output_dir=output_dir,
                 isolate_by_instance=args.isolate
             )
+            
+            # 解包结果和保存路径
+            if isinstance(result_tuple, tuple) and len(result_tuple) == 2:
+                result, saved_path = result_tuple
+            else:
+                result = result_tuple
+                saved_path = None
             
             # 使用富文本展示结果
             if RICH_AVAILABLE:
@@ -1274,15 +1283,12 @@ def main():
                 print(f"结果：{result}")
                 print(f"{'='*60}")
             
-            if output_dir:
+            # 显示保存路径
+            if saved_path:
                 if RICH_AVAILABLE:
-                    print_info(f"输出已保存到：{output_dir}")
-                    if args.isolate:
-                        print_info(f"已按实例 ID 隔离到子目录")
+                    print_info(f"输出已保存到：{saved_path}")
                 else:
-                    print(f"\n[Debug] 输出已保存到：{output_dir}")
-                    if args.isolate:
-                        print(f"[Debug] 已按实例 ID 隔离到子目录")
+                    print(f"\n[Debug] 输出已保存到：{saved_path}")
         
         except Exception as e:
             if RICH_AVAILABLE:
