@@ -5,3 +5,4 @@ numpy>=1.21.0
 matplotlib>=3.4.0
 dataclasses; python_version<'3.7'
 rich>=13.0.0
+networkx>=2.5
