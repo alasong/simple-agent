@@ -13,6 +13,7 @@
     - 支持并行任务（多副本）
     - 输出目录隔离
     - 支持手动创建和管理 Agent
+    - 富文本输出展示
 """
 
 import sys
@@ -30,6 +31,13 @@ from core import (
     TreeOfThought, ReflectionLoop,
     SkillLibrary
 )
+
+# 富文本输出支持
+try:
+    from core.rich_output import get_rich_output, RichOutput
+    RICH_AVAILABLE = True
+except ImportError:
+    RICH_AVAILABLE = False
 
 # 全局 CLI Agent 实例
 cli_agent = None
@@ -157,6 +165,13 @@ def show_help():
 /debug [on|off] 切换调试模式
 /isolate [on|off] 切换隔离模式（默认开启）
 
+===== 后台任务管理 =====
+/bg <任务>       后台执行任务，立即返回（不阻塞）
+/tasks           列出所有后台任务及状态
+/result <task_id> 查看任务结果（阻塞直到完成）
+/cancel <task_id> 取消任务
+/task_stats      查看任务统计信息
+
 ===== 单 Agent 模式 =====
 /new <描述>     创建新 Agent
 /update <描述>  更新当前 Agent 提示词
@@ -187,6 +202,7 @@ def show_help():
 - 使用 /session 切换不同任务的上下文
 - 增强型 Agent 支持自动策略选择和记忆管理
 - 代码审查工具使用 EnhancedAgent 的代码分析技能
+- 后台任务支持并发执行（默认最多 3 个任务同时运行）
 """)
 
 
@@ -696,6 +712,282 @@ def interactive_mode():
                     result = asyncio.run(enhanced_agent.run(f"审查这个 Python 文件的代码质量和安全性：{file_path}", verbose=True))
                     print(f"\n审查结果:\n{result}")
         
+        # ========== 后台任务管理命令 ==========
+        
+        elif user_input.startswith("/bg "):
+            # 后台执行任务
+            task = user_input[4:].strip()
+            if not task:
+                print("用法：/bg <任务描述>")
+                print("示例：/bg 分析这个项目")
+                continue
+            
+            # 确定输出目录
+            output_dir = None
+            if debug_mode:
+                task_prefix = task[:20].replace('/', '_').replace('\\', '_')
+                output_dir = f"{OUTPUT_DIR}/{task_prefix}"
+            
+            try:
+                import asyncio
+                
+                # 异步提交任务
+                async def submit_bg_task():
+                    # 确保任务队列已启动
+                    await cli_agent.task_queue.start()
+                    handle = await cli_agent.execute_async(
+                        task,
+                        verbose=True,
+                        output_dir=output_dir,
+                        isolate_by_instance=isolate_mode
+                    )
+                    return handle
+                
+                # 运行异步代码
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        # 在已有循环中（如 Jupyter）
+                        handle = asyncio.run_coroutine_threadsafe(
+                            submit_bg_task(),
+                            loop
+                        ).result()
+                    else:
+                        handle = loop.run_until_complete(submit_bg_task())
+                except RuntimeError:
+                    # 没有循环，创建新的
+                    handle = asyncio.run(submit_bg_task())
+                
+                # 显示任务信息
+                if RICH_AVAILABLE:
+                    from core.rich_output import print_success, print_info
+                    print_success(f"✓ 任务已提交到后台执行：{handle.id}")
+                    print_info(f"使用 /tasks 查看状态，/result {handle.id} 查看结果")
+                else:
+                    print(f"\n✓ 任务已提交到后台执行：{handle.id}")
+                    print(f"  使用 /tasks 查看状态，/result {handle.id} 查看结果")
+            
+            except Exception as e:
+                if RICH_AVAILABLE:
+                    from core.rich_output import print_error
+                    print_error(f"提交失败：{e}")
+                else:
+                    print(f"\n[错误] 提交失败：{e}")
+                import traceback
+                traceback.print_exc()
+        
+        elif user_input == "/tasks":
+            # 列出所有后台任务
+            try:
+                import asyncio
+                
+                async def list_bg_tasks():
+                    # 确保队列已启动
+                    await cli_agent.task_queue.start()
+                    tasks = await cli_agent.task_queue.list_tasks()
+                    return tasks
+                
+                try:
+                    # Python 3.12+ 使用 asyncio.new_event_loop()
+                    try:
+                        loop = asyncio.get_running_loop()
+                        # 在已有运行循环中
+                        tasks = asyncio.run_coroutine_threadsafe(list_bg_tasks(), loop).result()
+                    except RuntimeError:
+                        # 没有运行中的循环
+                        tasks = asyncio.run(list_bg_tasks())
+                except Exception as e:
+                    # 降级处理
+                    tasks = asyncio.run(list_bg_tasks())
+                
+                if not tasks:
+                    print("暂无后台任务")
+                else:
+                    print(f"\n{'='*60}")
+                    print(f"后台任务列表 ({len(tasks)} 个)")
+                    print(f"{'='*60}")
+                    
+                    if RICH_AVAILABLE:
+                        # 使用富文本表格
+                        from core.rich_output import TaskDisplayData
+                        from core.task_handle import TaskStatusEnum
+                        
+                        task_data = []
+                        for t in tasks[:10]:  # 限制显示 10 个
+                            status_icon = {
+                                TaskStatusEnum.PENDING: "⏳",
+                                TaskStatusEnum.RUNNING: "🔄",
+                                TaskStatusEnum.COMPLETED: "✅",
+                                TaskStatusEnum.FAILED: "❌",
+                                TaskStatusEnum.CANCELLED: "⚠️"
+                            }.get(t.status, "?")
+                            
+                            task_data.append(TaskDisplayData(
+                                id=t.id,
+                                description=t.input[:50],
+                                status=status_icon,
+                                result=t.progress or "",
+                                duration=t.get_elapsed_time() if hasattr(t, 'get_elapsed_time') else 0
+                            ))
+                        
+                        from core.rich_output import get_rich_output
+                        get_rich_output().show_task_table(task_data, "任务状态")
+                    else:
+                        # 普通文本显示
+                        for t in tasks[:10]:
+                            elapsed = t.get_elapsed_time() if hasattr(t, 'get_elapsed_time') else 0
+                            print(f"  [{t.status.value:10}] {t.id:30} | {t.input[:40]} | {elapsed:.1f}s")
+                        
+                        if len(tasks) > 10:
+                            print(f"\n... 还有 {len(tasks) - 10} 个任务未显示")
+                    
+                    print(f"{'='*60}")
+                
+                # 显示统计
+                stats = cli_agent.task_queue.get_stats()
+                print(f"\n统计：总计{stats['total']} | 等待{stats['pending']} | 运行{stats['running']} | " +
+                      f"完成{stats['completed']} | 失败{stats['failed']} | 取消{stats['cancelled']}")
+            
+            except Exception as e:
+                if RICH_AVAILABLE:
+                    from core.rich_output import print_error
+                    print_error(f"获取任务列表失败：{e}")
+                else:
+                    print(f"\n[错误] 获取任务列表失败：{e}")
+                import traceback
+                traceback.print_exc()
+        
+        elif user_input.startswith("/result "):
+            # 查看任务结果
+            task_id = user_input[8:].strip()
+            if not task_id:
+                print("用法：/result <task_id>")
+                print("示例：/result task_1234567890_1234")
+                continue
+            
+            try:
+                import asyncio
+                
+                async def get_result():
+                    await cli_agent.task_queue.start()
+                    return await cli_agent.task_queue.get_result(task_id, timeout=60)
+                
+                print(f"\n等待任务 {task_id} 完成...（最多 60 秒）")
+                
+                try:
+                    loop = asyncio.get_event_loop()
+                    result = loop.run_until_complete(get_result()) if not loop.is_running() else \
+                             asyncio.run_coroutine_threadsafe(get_result(), loop).result()
+                    
+                    if RICH_AVAILABLE:
+                        from core.rich_output import print_success, print_header
+                        print_header("任务结果", task_id)
+                        print_success(str(result)[:1000])
+                    else:
+                        print(f"\n结果：{result}")
+                
+                except asyncio.TimeoutError:
+                    if RICH_AVAILABLE:
+                        from core.rich_output import print_warning
+                        print_warning("任务超时，任务可能仍在执行中")
+                    else:
+                        print("\n[警告] 任务超时，任务可能仍在执行中")
+                except Exception as e:
+                    if RICH_AVAILABLE:
+                        from core.rich_output import print_error
+                        print_error(f"任务失败：{e}")
+                    else:
+                        print(f"\n[错误] 任务失败：{e}")
+            
+            except Exception as e:
+                if RICH_AVAILABLE:
+                    from core.rich_output import print_error
+                    print_error(f"获取结果失败：{e}")
+                else:
+                    print(f"\n[错误] 获取结果失败：{e}")
+                import traceback
+                traceback.print_exc()
+        
+        elif user_input.startswith("/cancel "):
+            # 取消任务
+            task_id = user_input[8:].strip()
+            if not task_id:
+                print("用法：/cancel <task_id>")
+                continue
+            
+            try:
+                import asyncio
+                
+                async def cancel_task():
+                    await cli_agent.task_queue.start()
+                    return await cli_agent.task_queue.cancel(task_id)
+                
+                try:
+                    loop = asyncio.get_event_loop()
+                    success = loop.run_until_complete(cancel_task()) if not loop.is_running() else \
+                              asyncio.run_coroutine_threadsafe(cancel_task(), loop).result()
+                
+                    if RICH_AVAILABLE:
+                        from core.rich_output import print_success, print_error
+                        if success:
+                            print_success(f"✓ 已取消任务：{task_id}")
+                        else:
+                            print_error(f"✗ 取消失败：任务不存在或已完成")
+                    else:
+                        if success:
+                            print(f"\n✓ 已取消任务：{task_id}")
+                        else:
+                            print(f"\n✗ 取消失败：任务不存在或已完成")
+                
+                except Exception as e:
+                    if RICH_AVAILABLE:
+                        from core.rich_output import print_error
+                        print_error(f"取消失败：{e}")
+                    else:
+                        print(f"\n[错误] 取消失败：{e}")
+            
+            except Exception as e:
+                if RICH_AVAILABLE:
+                    from core.rich_output import print_error
+                    print_error(f"取消失败：{e}")
+                else:
+                    print(f"\n[错误] 取消失败：{e}")
+                import traceback
+                traceback.print_exc()
+        
+        elif user_input == "/task_stats":
+            # 查看任务统计
+            stats = cli_agent.task_queue.get_stats()
+            
+            if RICH_AVAILABLE:
+                from core.rich_output import print_header, print_info
+                print_header("任务队列统计", f"最大并发：{stats['max_concurrent']}")
+                
+                print_info(f"""
+总任务数：{stats['total']}
+  - 等待中：{stats['pending']}
+  - 运行中：{stats['running']}
+  - 已完成：{stats['completed']}
+  - 已失败：{stats['failed']}
+  - 已取消：{stats['cancelled']}
+
+队列大小：{stats['queue_size']}
+最大并发：{stats['max_concurrent']}
+""")
+            else:
+                print(f"\n{'='*60}")
+                print(f"任务队列统计")
+                print(f"{'='*60}")
+                print(f"总任务数：{stats['total']}")
+                print(f"  等待中：{stats['pending']}")
+                print(f"  运行中：{stats['running']}")
+                print(f"  已完成：{stats['completed']}")
+                print(f"  已失败：{stats['failed']}")
+                print(f"  已取消：{stats['cancelled']}")
+                print(f"\n队列大小：{stats['queue_size']}")
+                print(f"最大并发：{stats['max_concurrent']}")
+                print(f"{'='*60}")
+        
         else:
             # 执行任务
             if current_agent:
@@ -722,21 +1014,41 @@ def interactive_mode():
                         isolate_by_instance=isolate_mode
                     )
                     
-                    print(f"\n{'='*60}")
-                    print(f"结果：{result}")
-                    print(f"{'='*60}")
+                    # 使用富文本展示结果
+                    if RICH_AVAILABLE:
+                        from core.rich_output import print_header, print_info
+                        print_header("任务执行结果", user_input[:60])
+                        if hasattr(result, 'tasks_completed'):
+                            # Swarm 结果
+                            get_rich_output().show_swarm_result(result, user_input)
+                        else:
+                            # 普通结果
+                            print_info(f"结果：{str(result)[:500]}")
+                    else:
+                        print(f"\n{'='*60}")
+                        print(f"结果：{result}")
+                        print(f"{'='*60}")
                     
                     if output_dir:
-                        print(f"\n[Debug] 输出已保存到：{output_dir}")
-                        if isolate_mode:
-                            print(f"[Debug] 已按实例 ID 隔离到子目录")
+                        if RICH_AVAILABLE:
+                            print_info(f"输出已保存到：{output_dir}")
+                            if isolate_mode:
+                                print_info(f"已按实例 ID 隔离到子目录")
+                        else:
+                            print(f"\n[Debug] 输出已保存到：{output_dir}")
+                            if isolate_mode:
+                                print(f"[Debug] 已按实例 ID 隔离到子目录")
                     
                     # 保存会话
                     from core.session import save_session
                     save_session("default", cli_agent.agent)
                 
                 except Exception as e:
-                    print(f"\n[错误] {e}")
+                    if RICH_AVAILABLE:
+                        from core.rich_output import print_error
+                        print_error(f"{e}")
+                    else:
+                        print(f"\n[错误] {e}")
                     import traceback
                     traceback.print_exc()
 
@@ -769,11 +1081,20 @@ def main():
         # 单次任务模式（智能模式）
         task = args.task or args.input
         
-        print(f"[CLI Agent] 执行任务：{task}")
-        if output_dir:
-            print(f"[CLI Agent] 输出目录：{output_dir}")
-            if args.isolate:
-                print(f"[CLI Agent] 隔离模式：已开启")
+        # 使用富文本展示任务开始
+        if RICH_AVAILABLE:
+            from core.rich_output import print_header, print_info
+            print_header("CLI Agent 执行任务", task[:60])
+            if output_dir:
+                print_info(f"输出目录：{output_dir}")
+                if args.isolate:
+                    print_info(f"隔离模式：已开启")
+        else:
+            print(f"[CLI Agent] 执行任务：{task}")
+            if output_dir:
+                print(f"[CLI Agent] 输出目录：{output_dir}")
+                if args.isolate:
+                    print(f"[CLI Agent] 隔离模式：已开启")
         
         try:
             result = cli.execute(
@@ -783,17 +1104,35 @@ def main():
                 isolate_by_instance=args.isolate
             )
             
-            print(f"\n{'='*60}")
-            print(f"结果：{result}")
-            print(f"{'='*60}")
+            # 使用富文本展示结果
+            if RICH_AVAILABLE:
+                if hasattr(result, 'tasks_completed'):
+                    # Swarm 结果
+                    get_rich_output().show_swarm_result(result, task)
+                else:
+                    # 普通结果
+                    print_info(f"结果：{str(result)[:500]}")
+            else:
+                print(f"\n{'='*60}")
+                print(f"结果：{result}")
+                print(f"{'='*60}")
             
             if output_dir:
-                print(f"\n[Debug] 输出已保存到：{output_dir}")
-                if args.isolate:
-                    print(f"[Debug] 已按实例 ID 隔离到子目录")
+                if RICH_AVAILABLE:
+                    print_info(f"输出已保存到：{output_dir}")
+                    if args.isolate:
+                        print_info(f"已按实例 ID 隔离到子目录")
+                else:
+                    print(f"\n[Debug] 输出已保存到：{output_dir}")
+                    if args.isolate:
+                        print(f"[Debug] 已按实例 ID 隔离到子目录")
         
         except Exception as e:
-            print(f"\n[错误] {e}")
+            if RICH_AVAILABLE:
+                from core.rich_output import print_error
+                print_error(f"{e}")
+            else:
+                print(f"\n[错误] {e}")
             import traceback
             traceback.print_exc()
         

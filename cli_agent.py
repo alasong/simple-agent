@@ -11,6 +11,8 @@ CLI Agent - 统一的用户交互入口
 支持会话记忆：保持多轮对话上下文
 """
 
+import asyncio
+import time
 from typing import Optional, Any
 
 # 先导入工具模块，确保工具注册到资源仓库
@@ -18,6 +20,8 @@ import tools  # noqa: F401
 
 from core.llm import OpenAILLM
 from core.config_loader import get_config
+from core.task_queue import TaskQueue
+from core.task_handle import TaskHandle
 
 
 class CLIAgent:
@@ -28,11 +32,15 @@ class CLIAgent:
     自身从配置文件加载
     """
     
-    def __init__(self, llm: Optional[OpenAILLM] = None):
+    def __init__(self, llm: Optional[OpenAILLM] = None, max_concurrent: int = 3):
         self.llm = llm or OpenAILLM()
         self._agent = None  # CLI Agent 实例
         self._planner = None  # Planner Agent，延迟加载
         self._config = get_config()
+        # 任务队列 - 支持后台执行
+        self.task_queue = TaskQueue(max_concurrent=max_concurrent)
+        self._task_counter = 0
+        self._queue_started = False
     
     def _init_session_memory(self):
         """初始化会话记忆"""
@@ -264,4 +272,108 @@ class CLIAgent:
             print(f"\n[CLI Agent] 复杂任务处理完成")
         
         return result
+    
+    async def _ensure_queue_started(self):
+        """确保任务队列已启动"""
+        if not self._queue_started:
+            await self.task_queue.start()
+            self._queue_started = True
+    
+    async def execute_async(
+        self,
+        user_input: str,
+        verbose: bool = True,
+        output_dir: Optional[str] = None,
+        isolate_by_instance: bool = False
+    ) -> TaskHandle:
+        """
+        异步执行任务（后台执行，立即返回）
+        
+        Args:
+            user_input: 用户输入
+            verbose: 是否打印详细过程
+            output_dir: 输出目录
+            isolate_by_instance: 是否按实例隔离
+        
+        Returns:
+            TaskHandle 对象，用于跟踪任务状态
+        """
+        # 确保队列已启动
+        await self._ensure_queue_started()
+        
+        # 生成任务 ID
+        self._task_counter += 1
+        task_id = f"task_{self._task_counter}_{int(time.time() * 1000)}"
+        
+        # 创建执行协程
+        async def task_coro():
+            """任务执行包装器"""
+            loop = asyncio.get_event_loop()
+            
+            # 在线程池中执行同步的 execute 方法
+            def execute_task():
+                return self.execute(
+                    user_input,
+                    verbose=verbose,
+                    output_dir=output_dir,
+                    isolate_by_instance=isolate_by_instance
+                )
+            
+            return await loop.run_in_executor(None, execute_task)
+        
+        # 提交到任务队列
+        handle = await self.task_queue.submit(
+            task_id=task_id,
+            input_text=user_input,
+            coro=task_coro()
+        )
+        
+        if verbose:
+            print(f"\n[CLI Agent] ✓ 任务已提交到后台执行：{task_id}")
+            print(f"[CLI Agent] 使用 /tasks 查看状态，/result {task_id} 查看结果")
+        
+        return handle
+    
+    def execute_background(
+        self,
+        user_input: str,
+        verbose: bool = True,
+        output_dir: Optional[str] = None,
+        isolate_by_instance: bool = False
+    ) -> TaskHandle:
+        """
+        同步方式提交后台任务（兼容接口）
+        
+        Args:
+            user_input: 用户输入
+            verbose: 是否打印详细过程
+            output_dir: 输出目录
+            isolate_by_instance: 是否按实例隔离
+        
+        Returns:
+            TaskHandle 对象
+        """
+        # 创建新的事件循环来运行异步方法
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # 如果事件循环正在运行（如在 Jupyter 中），创建 task
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = loop.run_in_executor(
+                        executor,
+                        lambda: asyncio.run(self.execute_async(
+                            user_input, verbose, output_dir, isolate_by_instance
+                        ))
+                    )
+                    return asyncio.run_coroutine_threadsafe(future, loop).result()
+            else:
+                return loop.run_until_complete(self.execute_async(
+                    user_input, verbose, output_dir, isolate_by_instance
+                ))
+        except RuntimeError:
+            # 没有事件循环，创建新的
+            return asyncio.run(self.execute_async(
+                user_input, verbose, output_dir, isolate_by_instance
+            ))
 
