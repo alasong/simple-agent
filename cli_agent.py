@@ -237,9 +237,21 @@ class CLIAgent:
         # 检测是否需要实时信息（使用配置中的关键词）
         enhanced_input = user_input
         
-        # 日期查询
+        # 日期查询：直接从系统获取当前日期（避免 LLM 编造）
         if any(kw in user_input for kw in PromptTemplates.get_date_keywords()):
-            enhanced_input = f"{user_input}{PromptTemplates.get_date_query_prompt()}"
+            if verbose:
+                print("[CLI Agent] 检测到日期查询，获取系统当前日期...")
+            
+            # 直接从系统获取日期，避免 LLM 编造
+            now = datetime.now()
+            weekday_str = WeekdayConfig.get_weekday(now.weekday())
+            current_date_str = f"{now.year}年{now.month}月{now.day}日，{weekday_str}"
+            
+            if verbose:
+                print(PromptTemplates.get_log_current_date(current_date_str))
+            
+            # 将准确日期注入到提示词
+            enhanced_input = f"{user_input}（当前准确日期：{current_date_str}）"
         
         # 天气查询：直接从系统获取当前日期（更可靠，避免 LLM 编造）
         elif any(kw in user_input for kw in PromptTemplates.get_weather_keywords()):
