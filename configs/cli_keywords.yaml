@@ -1,0 +1,66 @@
+# CLI Agent 关键词配置
+# 用于识别用户意图并选择合适的提示词模板
+# 避免在代码中硬编码
+
+# 日期查询关键词
+date_keywords:
+  - "今天"
+  - "日期"
+  - "几号"
+  - "星期"
+  - "时间"
+  - "现在几点"
+  - "几点"
+  - "时刻"
+
+# 天气查询关键词
+weather_keywords:
+  - "天气"
+  - "气温"
+  - "下雨"
+  - "刮风"
+  - "雾霾"
+  - "空气质量"
+  - "阴天"
+  - "晴天"
+  - "多云"
+  - "温度"
+  - "降水"
+  - "风速"
+
+# 实时信息关键词
+realtime_keywords:
+  - "新闻"
+  - "头条"
+  - "最新"
+  - "股价"
+  - "比分"
+  - "排名"
+  - "热搜"
+  - "疫情"
+  - "实时"
+  - "快讯"
+  - "动态"
+
+# 提示词模板
+templates:
+  date_query: "（请使用 GetCurrentDateTool 获取当前日期）"
+  
+  weather: "（**重要：当前准确日期是{date_str}。请务必使用 WebSearchTool 搜索最新天气信息，设置 fetch_content=true，严禁编造数据！**）"
+  
+  realtime: "（请使用 WebSearchTool 搜索获取最新信息）"
+
+# 日志消息模板
+log_messages:
+  weather_detection: "[CLI Agent] 检测到天气查询，先获取系统当前日期..."
+  current_date: "[CLI Agent] 系统当前日期：{date_str}"
+
+# 星期配置
+weekdays:
+  - "星期一"
+  - "星期二"
+  - "星期三"
+  - "星期四"
+  - "星期五"
+  - "星期六"
+  - "星期日"

@@ -82,7 +82,21 @@ class WorkflowStep:
             output_dir: 输出目录
             step_index: 步骤序号
             debug: 是否启用调试跟踪
+        
+        Raises:
+            ValueError: 当依赖的 input_key 不存在时
         """
+        # 依赖验证：检查 input_key 是否存在于上下文中
+        if self.input_key and self.input_key not in context:
+            error_msg = f"步骤 '{self.name}' 依赖的输入键 '{self.input_key}' 不存在于上下文中"
+            if verbose:
+                print(f"[Workflow] ⚠️  警告：{error_msg}")
+                print(f"[Workflow] 可用上下文键：{list(context.keys())}")
+            # 跳过此步骤，继续执行
+            if verbose:
+                print(f"[Workflow] 跳过步骤 '{self.name}'")
+            return context
+        
         # 构建输入
         if self.input_key:
             user_input = str(context.get(self.input_key, ""))
@@ -512,6 +526,59 @@ class Workflow:
             if isinstance(result, StepResult):
                 files.extend(result.files)
         return list(set(files))
+    
+    def cleanup_context(self, keep_last_n: int = 5, keep_step_metadata: bool = True):
+        """
+        清理工作流上下文，防止长工作流内存泄漏
+        
+        Args:
+            keep_last_n: 保留最近 N 个步骤的结果（默认 5 个）
+            keep_step_metadata: 是否保留步骤元数据（名称、执行时间等）
+        
+        使用场景：
+        - 长工作流执行过程中定期清理
+        - 内存受限环境
+        - 只需要最近步骤结果的场景
+        
+        示例：
+            workflow.cleanup_context(keep_last_n=3)  # 只保留最近 3 个步骤
+        """
+        step_results = self.context.get("_step_results", {})
+        
+        if len(step_results) <= keep_last_n:
+            # 不需要清理
+            return
+        
+        if keep_step_metadata:
+            # 保留元数据，只清理详细内容
+            items = list(step_results.items())
+            kept_items = items[-keep_last_n:]
+            
+            # 清理旧步骤的详细结果，保留基本信息
+            for step_name, result in items[:-keep_last_n]:
+                if isinstance(result, StepResult):
+                    # 保留类型和元数据，清理详细内容
+                    old_result = result
+                    self.context["_step_results"][step_name] = StepResult(
+                        type=old_result.type,
+                        content=f"[已清理] 步骤 {step_name} 的详细结果",
+                        files=old_result.files,
+                        metadata={k: v for k, v in old_result.metadata.items() if k in ['execution_time', 'success']}
+                    )
+        else:
+            # 直接删除旧步骤
+            items = list(step_results.items())
+            kept_items = items[-keep_last_n:]
+            self.context["_step_results"] = dict(kept_items)
+        
+        # 清理其他可能的大对象
+        if "_last_output" in self.context and len(str(self.context["_last_output"])) > 10000:
+            # 如果最后输出太长，截断
+            self.context["_last_output"] = str(self.context["_last_output"])[:10000] + "\n[...内容已截断...]"
+        
+        # 清理初始输入（如果很长）
+        if "_initial_input" in self.context and len(str(self.context["_initial_input"])) > 5000:
+            self.context["_initial_input"] = str(self.context["_initial_input"])[:5000] + "\n[...内容已截断...]"
     
     def to_dict(self) -> Dict:
         """序列化"""

@@ -64,17 +64,30 @@ class AgentCore:
             return ToolResult(success=False, output="", error=f"未知工具：{tool_name}")
         return tool.execute(**arguments)
     
-    def run(self, user_input: str, verbose: bool = True) -> str:
+    def run(self, user_input: str, verbose: bool = True, 
+            error_enhancer=None, debug: bool = False) -> str:
         """
         主循环 - 核心执行逻辑
         
         Args:
             user_input: 用户输入
             verbose: 是否打印详细过程
+            error_enhancer: 可选的错误增强器（AgentErrorEnhancer）
+            debug: 是否启用调试跟踪
         
         Returns:
             执行结果
         """
+        import time
+        from .debug import tracker
+        
+        # 调试跟踪
+        debug_record = None
+        if debug and tracker.enabled:
+            debug_record = tracker.start_agent_execution(
+                self.name, self.version, self.instance_id, user_input
+            )
+        
         # 设置全局 verbose 状态（供工具使用）
         try:
             from tools.agent_tools import set_verbose
@@ -105,6 +118,17 @@ class AgentCore:
             # 如果没有工具调用，返回结果
             if not tool_calls:
                 self.memory.add_assistant(content)
+                
+                # 结束调试跟踪
+                if debug and tracker.enabled and debug_record:
+                    tracker.end_agent_execution(
+                        debug_record,
+                        content,
+                        success=True,
+                        tool_calls=0,
+                        iterations=iteration
+                    )
+                
                 return content
             
             # 添加助手消息（带工具调用）
@@ -124,17 +148,28 @@ class AgentCore:
                 # 执行工具
                 result = self._execute_tool(tool_name, arguments)
                 
-                # 添加结果到记忆
+                # 失败时触发智能恢复（如果有 error_enhancer）
                 if not result.success:
                     if verbose:
                         print(f"[错误] 工具 {tool_name} 执行失败：{result.error}")
                     
-                    # 添加错误信息到记忆
-                    self.memory.add_tool_result(
-                        tool_call_id=tool_id,
-                        name=tool_name,
-                        content=f"错误：{result.error}"
-                    )
+                    if error_enhancer:
+                        # 使用错误增强器提供智能应对建议
+                        enhanced_error = error_enhancer.enhance_with_suggestions(
+                            tool_name, arguments, result.error
+                        )
+                        self.memory.add_tool_result(
+                            tool_call_id=tool_id,
+                            name=tool_name,
+                            content=enhanced_error
+                        )
+                    else:
+                        # 基本错误处理
+                        self.memory.add_tool_result(
+                            tool_call_id=tool_id,
+                            name=tool_name,
+                            content=f"错误：{result.error}"
+                        )
                 else:
                     # 成功则正常添加结果
                     self.memory.add_tool_result(
@@ -143,4 +178,16 @@ class AgentCore:
                         content=result.output
                     )
         
-        return f"达到最大迭代次数 ({self.max_iterations})，任务可能未完成"
+        result_text = f"达到最大迭代次数 ({self.max_iterations})，任务可能未完成"
+        
+        # 结束调试跟踪
+        if debug and tracker.enabled and debug_record:
+            tracker.end_agent_execution(
+                debug_record,
+                result_text,
+                success=True,
+                tool_calls=0,
+                iterations=iteration
+            )
+        
+        return result_text

@@ -38,25 +38,19 @@ class CLIAgent:
     自身从配置文件加载
     """
     
-    def __init__(self, llm: Optional[OpenAILLM] = None, max_concurrent: int = 3):
+    def __init__(self, llm: Optional[OpenAILLM] = None, max_concurrent: int = 3, instance_id: Optional[str] = None):
         self.llm = llm or OpenAILLM()
         self._agent = None  # CLI Agent 实例
         self._planner = None  # Planner Agent，延迟加载
         self._config = get_config()
+        # 实例 ID - 用于输出隔离
+        self.instance_id = instance_id
         # 任务队列 - 支持后台执行
         self.task_queue = TaskQueue(max_concurrent=max_concurrent)
         self._task_counter = 0
         self._queue_started = False
-    
-    def _init_session_memory(self):
-        """初始化会话记忆"""
-        self.memory = create_memory(self.session_id)
-        # 设置系统提示词到记忆
-        if self.memory:
-            self.memory.set_system_prompt(
-                "你是 CLI Agent，是用户与系统交互的入口。"
-                "请结合对话历史理解用户意图，保持上下文连贯性。"
-            )
+        # Note: CLIAgent delegates to self.agent and self.planner for execution
+        # Memory is managed by those agents, not here
     
     @property
     def agent(self):
@@ -244,13 +238,13 @@ class CLIAgent:
         enhanced_input = user_input
         
         # 日期查询
-        if any(kw in user_input for kw in PromptTemplates.DATE_KEYWORDS):
-            enhanced_input = f"{user_input}{PromptTemplates.DATE_QUERY_PROMPT}"
+        if any(kw in user_input for kw in PromptTemplates.get_date_keywords()):
+            enhanced_input = f"{user_input}{PromptTemplates.get_date_query_prompt()}"
         
         # 天气查询：直接从系统获取当前日期（更可靠，避免 LLM 编造）
-        elif any(kw in user_input for kw in PromptTemplates.WEATHER_KEYWORDS):
+        elif any(kw in user_input for kw in PromptTemplates.get_weather_keywords()):
             if verbose:
-                print(PromptTemplates.LOG_WEATHER_DETECTION)
+                print(PromptTemplates.get_log_weather_detection())
             
             # 直接从系统获取日期，避免 LLM 编造
             now = datetime.now()
@@ -258,15 +252,15 @@ class CLIAgent:
             current_date_str = f"{now.year}年{now.month}月{now.day}日，{weekday_str}"
             
             if verbose:
-                print(PromptTemplates.get_date_log(current_date_str))
+                print(PromptTemplates.get_log_current_date(current_date_str))
             
             # 将准确日期注入到提示词
             prompt_suffix = PromptTemplates.get_weather_prompt(current_date_str)
             enhanced_input = f"{user_input}{prompt_suffix}"
         
         # 实时信息查询
-        elif any(kw in user_input for kw in PromptTemplates.REALTIME_KEYWORDS):
-            enhanced_input = f"{user_input}{PromptTemplates.REALTIME_PROMPT_TEMPLATE}"
+        elif any(kw in user_input for kw in PromptTemplates.get_realtime_keywords()):
+            enhanced_input = f"{user_input}{PromptTemplates.get_realtime_prompt_template()}"
         
         result = self.agent.run(enhanced_input, verbose=verbose)
         
