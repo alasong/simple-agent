@@ -265,14 +265,19 @@ class SwarmOrchestrator:
                 "orchestrator"
             )
             
-            # 执行任务（Agent.run 是同步的，使用 run_in_executor 避免阻塞）
-            loop = asyncio.get_event_loop()
-            if hasattr(agent, 'run'):
-                # 如果是异步方法
-                if asyncio.iscoroutinefunction(agent.run):
-                    result = await agent.run(task_input, verbose=False)
-                else:
-                    result = await loop.run_in_executor(None, lambda: agent.run(task_input, verbose=False))
+            # 执行任务（使用 AsyncAgentAdapter 统一处理同步/异步 Agent）
+            from core.async_adapter import AsyncAgentAdapter
+            
+            # 检查是否是同步 Agent
+            is_sync = hasattr(agent, 'run') and not asyncio.iscoroutinefunction(agent.run)
+            
+            if is_sync:
+                # 使用适配器包装同步 Agent
+                async_agent = AsyncAgentAdapter(agent)
+                result = await async_agent.run(task_input, verbose=False)
+            elif hasattr(agent, 'run') and asyncio.iscoroutinefunction(agent.run):
+                # 异步 Agent 直接调用
+                result = await agent.run(task_input, verbose=False)
             else:
                 result = f"Agent {agent.name} 无 run 方法"
             

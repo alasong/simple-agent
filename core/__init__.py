@@ -28,11 +28,29 @@ from .factory import (
     AgentGenerator
 )
 from .workflow import Workflow, WorkflowStep, StepResult, ResultType, create_workflow, generate_workflow
+from .workflow_generator import WorkflowGenerator
+
+# 模块化组件（架构改进）
+from .agent_core import AgentCore
+from .agent_serializer import AgentSerializer
+from .agent_error_enhancer import AgentErrorEnhancer
+from .agent_cloner import AgentCloner
+from .container import DIContainer, get_container
+from .strategies import (
+    ExecutionStrategy,
+    ExecutionResult,
+    DirectStrategy,
+    PlanReflectStrategy,
+    TreeOfThoughtStrategy,
+    StrategyFactory
+)
+from .async_adapter import AsyncAgentAdapter
 
 # 增强功能 (阶段 1)
 from .memory_enhanced import EnhancedMemory, Experience
 from .reasoning_modes import TreeOfThought, ReflectionLoop
 from .skill_learning import SkillLibrary, Skill
+from .agent_enhanced import EnhancedAgent
 
 __all__ = [
     # 核心组件
@@ -44,6 +62,27 @@ __all__ = [
     "OpenAILLM",
     "Agent",
     "AgentInfo",
+    
+    # 模块化组件
+    "AgentCore",
+    "AgentSerializer",
+    "AgentErrorEnhancer",
+    "AgentCloner",
+    
+    # 依赖注入
+    "DIContainer",
+    "get_container",
+    
+    # 策略模式
+    "ExecutionStrategy",
+    "ExecutionResult",
+    "DirectStrategy",
+    "PlanReflectStrategy",
+    "TreeOfThoughtStrategy",
+    "StrategyFactory",
+    
+    # 异步适配
+    "AsyncAgentAdapter",
     
     # 资源仓库
     "ResourceRepository",
@@ -59,6 +98,7 @@ __all__ = [
     "get_agent",
     "list_agents",
     "AgentGenerator",
+    "EnhancedAgent",
     
     # Workflow
     "Workflow",
@@ -67,6 +107,7 @@ __all__ = [
     "ResultType",
     "create_workflow",
     "generate_workflow",
+    "WorkflowGenerator",
     
     # 增强功能 (阶段 1)
     "EnhancedMemory",
