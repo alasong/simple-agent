@@ -29,6 +29,8 @@ system_prompt: |
 tools:
   - ReadFileTool
   - WriteFileTool
+  - RunCommandTool
+  - CheckPythonSyntaxTool
 max_iterations: 15
 domains:
   - software_engineering

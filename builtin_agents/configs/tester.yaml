@@ -30,6 +30,8 @@ tools:
   - ReadFileTool
   - WriteFileTool
   - CheckFileExistsTool
+  - RunCommandTool
+  - CheckPythonSyntaxTool
 max_iterations: 15
 domains:
   - software_engineering

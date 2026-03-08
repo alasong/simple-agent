@@ -8,19 +8,28 @@ Simple Agent 是一个多 Agent 协作系统，支持群体智能、任务自动
 
 ## 常用命令
 
-```bash
-# 运行测试
-./venv/bin/python -m pytest tests/ -v
+### 测试
 
-# 运行单个测试文件
-./venv/bin/python -m pytest tests/test_dynamic_scheduler.py -v
+```bash
+# 日常核心测试 (推荐，约 30 秒)
+./tests/run_daily_tests.sh
+
+# 快速测试 (5 分钟内)
+./tests/run_quick_tests.sh
+
+# 完整测试套件 (约 5-10 分钟)
+./tests/run_all_tests.sh
+
+# 运行深度测试
+./venv/bin/python -m pytest tests/test_deep_core.py -v
 
 # 运行单个测试
-./venv/bin/python -m pytest tests/test_dynamic_scheduler.py::TestDynamicScheduler::test_scheduler_creation -v
+./venv/bin/python -m pytest tests/test_deep_core.py::TestDeepSchedulerIntegration::test_scheduler_full_workflow -v
+```
 
-# 运行 Swarm 集成测试
-./venv/bin/python -m pytest tests/test_swarm_integration.py -v
+### 运行
 
+```bash
 # 运行 CLI（交互模式）
 ./venv/bin/python cli_new.py
 
@@ -83,10 +92,12 @@ Simple Agent 是一个多 Agent 协作系统，支持群体智能、任务自动
 - `task_decomposer.py` - 多级任务分解器
 - `dependency_graph.py` - 依赖图管理器
 
-### tests/ - 测试
+### tests/ - 测试 (122 个测试)
+- `test_deep_core.py` - 14 个核心深度集成测试 (推荐)
 - `test_dynamic_scheduler.py` - 29 个测试
 - `test_workflow_parallel.py` - 30 个测试
 - `test_swarm_integration.py` - 16 个测试
+- 详见 `tests/README.md`
 
 ### CLI 相关
 - `cli_new.py` - 精简版 CLI 入口 (~200 行)
@@ -94,6 +105,16 @@ Simple Agent 是一个多 Agent 协作系统，支持群体智能、任务自动
 - `cli_agent.py` - CLI Agent 实现
 - `cli_coordinator.py` - CLI 协调器
 - `cli_commands/` - CLI 命令模块
+
+### builtin_agents/ - 内置 Agent (25 个)
+- `configs/` - YAML 配置文件目录
+- 核心开发：developer, architect, tester, deployer, reviewer
+- 产品与设计：product_manager, documenter
+- AI/ML：ai_researcher, ml_engineer, mlops_engineer, cv_engineer, nlp_engineer, prompt_engineer
+- 数据与量化：data_analyst, data_engineer, quant_analyst, financial_analyst, credit_analyst, investment_advisor
+- 交易与风险：trading_strategist, risk_manager, compliance_officer, planner
+- 新增专家：security_agent, performance_agent
+- 详见 `docs/BUILTIN_AGENTS.md`
 
 ## v2 新功能 (Phase 3-4)
 
@@ -144,7 +165,7 @@ result = await swarm.solve("复杂任务")
 
 1. **异步/同步兼容**: 系统同时支持同步和异步 Agent，使用 `AsyncAgentAdapter` 包装
 2. **v2 功能可用时**: `TaskSchedulerV2` 和 `ParallelWorkflow` 在导入失败时自动降级到 v1
-3. **测试覆盖率**: 所有新功能必须附带测试，运行 `pytest tests/ -v` 验证
+3. **测试**: 日常测试 `./tests/run_daily_tests.sh`，完整文档见 `tests/README.md`
 4. **Progress 文档**: 重构进度记录在 `REFACTOR_PROGRESS.md`
 
 ## 文档
@@ -152,4 +173,7 @@ result = await swarm.solve("复杂任务")
 - `docs/ARCHITECTURE.md` - 架构文档
 - `docs/SWARM.md` - Swarm 使用指南
 - `docs/PROJECT_OVERVIEW.md` - 项目概述
+- `docs/BUILTIN_AGENTS.md` - 内置 Agent 详细列表 (25 个)
+- `docs/TESTING.md` - 测试指南
+- `tests/README.md` - 测试运行说明
 - `REFACTOR_PROGRESS.md` - 重构进度和新增功能
