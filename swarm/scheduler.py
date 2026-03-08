@@ -2,6 +2,8 @@
 任务调度器（Task Scheduler）
 
 负责任务分解、依赖管理和智能调度
+
+v2.0: 集成 DynamicScheduler 增强功能
 """
 
 import asyncio
@@ -11,6 +13,13 @@ from dataclasses import dataclass, field
 from enum import Enum
 import json
 import re
+
+# 尝试导入新的动态调度器
+try:
+    from core.dynamic_scheduler import DynamicScheduler, ScheduledTask, TaskPriority
+    DYNAMIC_SCHEDULER_AVAILABLE = True
+except ImportError:
+    DYNAMIC_SCHEDULER_AVAILABLE = False
 
 
 class TaskStatus(Enum):
@@ -307,3 +316,178 @@ class TaskScheduler:
             "load_distribution": self.agent_load.copy(),
             "avg_load": sum(self.agent_load.values()) / max(1, len(self.agent_pool))
         }
+
+
+# ==================== v2 调度器（使用 DynamicScheduler） ====================
+
+class TaskSchedulerV2:
+    """
+    任务调度器 v2
+
+    使用新的 DynamicScheduler，提供更强大的功能:
+    - 智能 Agent 匹配（技能、成功率、负载）
+    - 失败重试机制
+    - 并行执行
+    - 实时监控
+    """
+
+    def __init__(
+        self,
+        agent_pool: list[Any],
+        llm=None,
+        max_concurrent: int = 5,
+        retry_delay_base: float = 1.0,
+        retry_delay_max: float = 30.0
+    ):
+        self.agent_pool = agent_pool
+        self.llm = llm
+
+        # 创建动态调度器
+        self.scheduler = DynamicScheduler(
+            agents=agent_pool,
+            llm=llm,
+            max_concurrent_tasks=max_concurrent,
+            retry_delay_base=retry_delay_base,
+            retry_delay_max=retry_delay_max
+        )
+
+        # 任务映射（旧 Task -> 新 ScheduledTask）
+        self._task_map: dict[str, Task] = {}
+
+    def build_from_tasks(self, tasks: list[Task]):
+        """从任务列表构建调度图"""
+        for task in tasks:
+            # 转换为 ScheduledTask
+            priority_map = {
+                0: TaskPriority.MEDIUM,
+                1: TaskPriority.HIGH,
+                2: TaskPriority.HIGH,
+                3: TaskPriority.CRITICAL
+            }
+            priority = priority_map.get(min(task.priority, 3), TaskPriority.MEDIUM)
+
+            scheduled_task = self.scheduler.add_task(
+                task_id=task.id,
+                description=task.description,
+                required_skills=task.required_skills,
+                priority=priority,
+                dependencies=task.dependencies
+            )
+
+            # 保存映射
+            self._task_map[task.id] = task
+
+    def get_ready_tasks(self) -> list[Task]:
+        """获取可执行的任务"""
+        completed = {
+            tid for tid, task in self._task_map.items()
+            if task.status == TaskStatus.COMPLETED
+        }
+
+        ready = []
+        for task in self._task_map.values():
+            if task.is_ready(completed):
+                ready.append(task)
+
+        ready.sort(key=lambda t: t.priority, reverse=True)
+        return ready
+
+    def has_pending_tasks(self) -> bool:
+        """是否有待处理的任务"""
+        return any(
+            t.status in (TaskStatus.PENDING, TaskStatus.RUNNING)
+            for t in self._task_map.values()
+        )
+
+    def get_task(self, task_id: str) -> Optional[Task]:
+        """获取任务"""
+        return self._task_map.get(task_id)
+
+    def get_all_tasks(self) -> list[Task]:
+        """获取所有任务"""
+        return list(self._task_map.values())
+
+    async def assign_task(self, task: Task) -> Optional[Any]:
+        """分配任务给 Agent（v2 使用动态调度器）"""
+        scheduled_task = self.scheduler.get_task(task.id)
+        if not scheduled_task:
+            return None
+
+        # 使用动态调度器选择 Agent
+        agent_id = self.scheduler.select_agent_for_task(scheduled_task)
+        if not agent_id:
+            return None
+
+        # 查找对应的 Agent 实例
+        for agent in self.agent_pool:
+            a_id = getattr(agent, 'instance_id', getattr(agent, 'name', str(agent)))
+            if a_id == agent_id:
+                task.mark_running(agent.instance_id)
+                return agent
+
+        return None
+
+    def complete_task(self, task: Task):
+        """任务完成"""
+        if task.assigned_to:
+            # 更新内部调度器的状态
+            if task.assigned_to in self.scheduler.agents:
+                self.scheduler.agents[task.assigned_to].current_load = max(
+                    0,
+                    self.scheduler.agents[task.assigned_to].current_load - 1
+                )
+
+    def get_agent_stats(self) -> dict:
+        """获取 Agent 统计（使用动态调度器的统计）"""
+        status = self.scheduler.get_status()
+        return {
+            "agents": len(self.agent_pool),
+            "load_distribution": {
+                aid: info.get('current_load', 0)
+                for aid, info in status.get('agents', {}).items()
+            },
+            "avg_load": sum(
+                info.get('current_load', 0)
+                for info in status.get('agents', {}).values()
+            ) / max(1, len(self.agent_pool)),
+            "success_rates": {
+                aid: info.get('success_rate', 1.0)
+                for aid, info in status.get('agents', {}).items()
+            },
+            "scheduler_stats": status.get('stats', {})
+        }
+
+    async def execute_all_parallel(
+        self,
+        verbose: bool = True
+    ) -> dict[str, Any]:
+        """
+        并行执行所有任务（使用 DynamicScheduler 的并行执行）
+
+        Returns:
+            执行结果字典
+        """
+        results = await self.scheduler.schedule_and_execute(
+            agent_pool=self.agent_pool,
+            verbose=verbose,
+            parallel=True
+        )
+
+        # 更新本地任务状态
+        for task_id, exec_result in results.items():
+            task = self._task_map.get(task_id)
+            if task:
+                if exec_result.success:
+                    task.mark_completed(exec_result.result)
+                else:
+                    task.mark_failed(exec_result.error or "Unknown error")
+
+        return {
+            'success': all(r.success for r in results.values()),
+            'results': {tid: r.to_dict() for tid, r in results.items()},
+            'scheduler_status': self.scheduler.get_status()
+        }
+
+    def get_scheduler_status(self) -> dict:
+        """获取调度器状态"""
+        return self.scheduler.get_status()

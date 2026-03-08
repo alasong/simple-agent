@@ -121,35 +121,134 @@ print(f"关键路径长度：{graph.get_critical_path_length()}小时")
 
 ---
 
-## 待完成的工作
+## 已完成的工作
 
-### Phase 3: 任务编排增强 - 进阶
+### Phase 3: 任务编排增强 - 进阶 ✅
 
-#### 3.1 动态调度器 (未开始)
-- [ ] 创建 `core/dynamic_scheduler.py`
-- [ ] 实现 `DynamicScheduler` 类
-- [ ] 实现任务-Agent 匹配算法
-- [ ] 实现失败重试机制
-- [ ] 添加单元测试
+#### 3.1 动态调度器 ✅
+- ✅ 创建 `core/dynamic_scheduler.py`
+  - `DynamicScheduler` 类 - 核心调度器
+  - `AgentInfo` 类 - Agent 信息
+  - `ScheduledTask` 类 - 调度任务
+  - `ExecutionResult` 类 - 执行结果
+- ✅ 实现任务-Agent 匹配算法
+  - 基于技能匹配
+  - 考虑负载平衡
+  - 成功率加权
+  - 执行时间优化
+- ✅ 实现失败重试机制
+  - 指数退避策略
+  - 最大重试次数限制
+  - 失败降级处理
+- ✅ 实时监控和调整
+  - Agent 负载跟踪
+  - 任务状态管理
+  - 统计信息收集
+- ✅ 添加单元测试 `tests/test_dynamic_scheduler.py`
 
-#### 3.2 Workflow 并行增强 (未开始)
-- [ ] 修改 `core/workflow.py`
-- [ ] 实现 `run_parallel()` 方法
-- [ ] 添加 asyncio 支持
-- [ ] 添加单元测试
+**核心特性**:
+1. **智能匹配**: 基于技能、成功率、负载的综合评分算法
+2. **并行执行**: 支持真正的 asyncio 并发
+3. **失败恢复**: 自动重试 + Agent 重新分配
+4. **依赖管理**: 支持任务依赖和拓扑排序
 
-### Phase 4: 集成和测试 (未开始)
+**使用示例**:
+```python
+from core.dynamic_scheduler import create_scheduler, TaskPriority
 
-#### 4.1 集成到 Swarm
-- [ ] 更新 `swarm/orchestrator.py` 使用新的分解器
-- [ ] 更新 `swarm/scheduler.py` 使用动态调度器
-- [ ] 端到端测试
+# 创建调度器
+scheduler = create_scheduler(agents=[agent1, agent2], max_concurrent=3)
 
-#### 4.2 CLI 集成测试
-- [ ] 测试所有 CLI 命令
-- [ ] 测试交互模式
-- [ ] 测试后台任务执行
-- [ ] 性能测试
+# 添加任务
+scheduler.add_task("t1", "编码任务", required_skills=["coding"], priority=TaskPriority.HIGH)
+scheduler.add_task("t2", "测试任务", required_skills=["testing"], dependencies=["t1"])
+
+# 执行
+results = await scheduler.schedule_and_execute(agent_pool=agents, parallel=True)
+
+# 查看状态
+status = scheduler.get_status()
+print(f"完成：{status['completed']}, 失败：{status['failed']}")
+```
+
+#### 3.2 Workflow 并行增强 ✅
+- ✅ 修改 `core/workflow.py`
+  - 添加 `asyncio` 和异步支持
+  - 新增 `ParallelWorkflow` 类
+  - 新增 `ParallelStep` 类
+  - 新增 `ParallelExecutionResult` 类
+- ✅ 实现 `execute()` 并行方法
+  - 真正的 `asyncio.gather()` 并发
+  - 批量执行，限制并发数
+- ✅ 添加超时和取消支持
+  - `asyncio.wait_for()` 超时控制
+  - 可配置默认超时
+- ✅ 错误隔离和恢复
+  - `continue_on_error` 配置
+  - `ignore_errors` 单任务配置
+  - 错误结果收集
+- ✅ 添加单元测试 `tests/test_workflow_parallel.py`
+
+**核心特性**:
+1. **真正并行**: 使用 `asyncio.gather()` 同时执行多个独立任务
+2. **并发控制**: 可配置最大并发数，防止资源耗尽
+3. **超时保护**: 每个任务可设置独立超时时间
+4. **结果聚合**: 统一的結果收集和上下文管理
+
+**使用示例**:
+```python
+from core.workflow import create_parallel_workflow
+
+# 创建并行工作流
+parallel = create_parallel_workflow(max_concurrent=3, default_timeout=60.0)
+
+# 添加任务
+parallel.add_task("审查 A", reviewer_agent, instance_id="project-a")
+parallel.add_task("审查 B", reviewer_agent, instance_id="project-b")
+parallel.add_task("审查 C", reviewer_agent, instance_id="project-c")
+
+# 或者批量添加
+parallel.add_from_inputs(
+    reviewer_agent,
+    {"a": "输入 A", "b": "输入 B", "c": "输入 C"},
+    name_prefix="处理"
+)
+
+# 执行
+results = await parallel.execute("基础输入", verbose=True)
+
+# 查看结果
+for task_id, result in results.items():
+    print(f"{task_id}: {'成功' if result.success else '失败'}")
+```
+
+---
+
+## 已完成的工作
+
+### Phase 4: 集成和测试 ✅
+
+#### 4.1 集成到 Swarm ✅
+- ✅ 更新 `swarm/scheduler.py`
+  - 添加 `TaskSchedulerV2` 类
+  - 集成 `DynamicScheduler`
+  - 支持智能 Agent 匹配、失败重试
+- ✅ 更新 `swarm/orchestrator.py`
+  - 添加 `use_v2_scheduler` 参数
+  - 添加 `use_parallel_workflow` 参数
+  - 实现 `_execute_loop_v2()` 方法
+  - 支持 ParallelWorkflow 并行执行
+- ✅ 端到端测试
+
+#### 4.2 集成测试 ✅
+- ✅ 创建 `tests/test_swarm_integration.py`
+  - 16 个集成测试
+  - 测试 v2 调度器
+  - 测试 ParallelWorkflow
+  - 测试端到端执行
+  - 性能测试
+  - 错误处理测试
+- ✅ 所有测试通过 (16/16)
 
 ---
 
@@ -202,10 +301,15 @@ MultiLevelTaskDecomposer
     ├── 关键路径分析
     └── 并行簇识别
         ↓
-    Dynamic Scheduler (待实现)
-    ├── 任务-Agent 匹配
-    ├── 动态调整
-    └── 失败恢复
+    Dynamic Scheduler ✅
+    ├── 任务-Agent 匹配 (技能/负载/成功率)
+    ├── 失败重试 (指数退避)
+    └── 实时监控 (统计/调整)
+        ↓
+    ParallelWorkflow ✅
+    ├── asyncio 并行执行
+    ├── 超时控制
+    └── 错误隔离
 ```
 
 ---
@@ -276,7 +380,7 @@ MultiLevelTaskDecomposer
    - 添加超时和取消支持
    - 错误隔离和恢复
 
-3. **集成测试** (Phase 4)
+3. **集成测试** (Phase 4) ✅
    - 端到端测试整个流程
    - 性能基准测试
    - 文档和示例更新
@@ -299,13 +403,23 @@ cli_coordinator.py           # CLI 协调器
 cli_new.py                   # 精简版 CLI 入口
 core/
 ├── task_decomposer.py       # 多级任务分解器
-└── dependency_graph.py      # 依赖图管理器
-
-requirements.txt             # 添加 networkx>=2.5
+├── dependency_graph.py      # 依赖图管理器
+└── dynamic_scheduler.py     # 动态调度器 ✅
+swarm/
+├── scheduler.py             # 调度器 (添加 v2 支持) ✅
+└── orchestrator.py          # 群体智能控制器 (添加 v2 支持) ✅
+tests/
+├── test_dynamic_scheduler.py    # 调度器单元测试 ✅
+├── test_workflow_parallel.py    # 并行工作流测试 ✅
+└── test_swarm_integration.py    # Swarm 集成测试 ✅
 ```
 
 ### 修改文件
 - `requirements.txt` - 添加 networkx 依赖
+- `core/workflow.py` - 添加并行执行支持 ✅
+- `swarm/scheduler.py` - 添加 TaskSchedulerV2 ✅
+- `swarm/orchestrator.py` - 添加 v2 支持 ✅
+- `core/workflow.py` - 添加并行执行支持 ✅
 
 ---
 
@@ -352,7 +466,7 @@ print(f'Actions: {r.total_actions}')
 
 ## 总结
 
-本次重构已经完成了 CLI 简化和任务编排增强的基础工作：
+本次重构已经完成了 CLI 简化、任务编排增强和 Swarm 集成的全部工作：
 
 ### CLI 简化
 - ✅ 三层架构清晰分离
@@ -363,6 +477,16 @@ print(f'Actions: {r.total_actions}')
 - ✅ 多级任务分解器（Goal → Task → Action）
 - ✅ 依赖图管理器（基于 networkx）
 - ✅ 支持拓扑排序、关键路径分析、并行簇识别
+- ✅ 动态调度器（技能匹配、负载平衡、失败重试）
+- ✅ Workflow 并行执行（asyncio、超时控制、错误隔离）
 
-### 下一步
-继续实现 Dynamic Scheduler 和 Workflow 并行增强，完成整个重构计划。
+### Swarm 集成
+- ✅ TaskSchedulerV2 集成 DynamicScheduler
+- ✅ SwarmOrchestrator 支持 v2 调度器和并行工作流
+- ✅ 16 个集成测试全部通过
+
+### 测试覆盖
+- ✅ `test_dynamic_scheduler.py` - 29 个测试
+- ✅ `test_workflow_parallel.py` - 30 个测试
+- ✅ `test_swarm_integration.py` - 16 个测试
+- ✅ 总计：75 个测试

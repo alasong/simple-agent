@@ -2,6 +2,8 @@
 群体智能控制器（Swarm Orchestrator）
 
 核心控制器，协调多个 Agent 完成复杂任务
+
+v2.0: 集成 DynamicScheduler 和 ParallelWorkflow
 """
 
 import asyncio
@@ -13,6 +15,14 @@ import uuid
 from .blackboard import Blackboard
 from .message_bus import MessageBus, Message
 from .scheduler import TaskScheduler, TaskDecomposer, Task, TaskGraph, TaskStatus
+
+# 尝试导入 v2 调度器
+try:
+    from swarm.scheduler import TaskSchedulerV2
+    from core.workflow import ParallelWorkflow, create_parallel_workflow
+    V2_FEATURES_AVAILABLE = True
+except ImportError:
+    V2_FEATURES_AVAILABLE = False
 
 # 富文本输出（可选）
 try:
@@ -47,44 +57,60 @@ class SwarmResult:
 
 class SwarmOrchestrator:
     """群体智能控制器"""
-    
+
     def __init__(
         self,
         agent_pool: list[Any],
         llm=None,
         max_iterations: int = 50,
         verbose: bool = True,
-        use_rich_output: bool = True
+        use_rich_output: bool = True,
+        use_v2_scheduler: bool = False,  # 使用新版调度器
+        use_parallel_workflow: bool = False,  # 使用并行工作流
+        max_concurrent: int = 5
     ):
         self.agent_pool = agent_pool
         self.llm = llm
         self.max_iterations = max_iterations
         self.verbose = verbose
         self.use_rich_output = use_rich_output and RICH_OUTPUT_AVAILABLE
-        
+        self.use_v2_scheduler = use_v2_scheduler and V2_FEATURES_AVAILABLE
+        self.use_parallel_workflow = use_parallel_workflow and V2_FEATURES_AVAILABLE
+        self.max_concurrent = max_concurrent
+
         # 富文本输出器
         self.rich_output = RichOutput() if self.use_rich_output else None
-        
+
         # 核心组件
         self.blackboard = Blackboard()
         self.message_bus = MessageBus()
-        self.scheduler = TaskScheduler(agent_pool)
+
+        # 根据配置选择调度器版本
+        if self.use_v2_scheduler:
+            self.scheduler = TaskSchedulerV2(
+                agent_pool,
+                llm=llm,
+                max_concurrent=max_concurrent
+            )
+        else:
+            self.scheduler = TaskScheduler(agent_pool)
+
         self.task_graph = TaskGraph()
-        
+
         # 任务分解器（需要 LLM）
         self.decomposer = TaskDecomposer(llm) if llm else None
-        
+
         # 状态
         self._running = False
         self._iteration = 0
         self._start_time: float = 0
         self._result: Optional[SwarmResult] = None
-        
+
         # 事件回调
         self._on_task_start: Optional[Callable] = None
         self._on_task_complete: Optional[Callable] = None
         self._on_swarm_complete: Optional[Callable] = None
-        
+
         # 任务执行跟踪
         self._task_display_data: List[TaskDisplayData] = [] if RICH_OUTPUT_AVAILABLE else []
     
@@ -179,18 +205,23 @@ class SwarmOrchestrator:
     
     async def _execute_loop(self, original_task: str) -> SwarmResult:
         """执行循环"""
+        # 如果使用 v2 调度器和并行工作流，使用新的执行方式
+        if self.use_v2_scheduler and self.use_parallel_workflow:
+            return await self._execute_loop_v2(original_task)
+
+        # 原有的执行逻辑
         tasks_completed = 0
         tasks_failed = 0
-        
+
         while self._running and self._iteration < self.max_iterations:
             self._iteration += 1
-            
+
             if self.verbose:
                 print(f"\n[迭代 {self._iteration}] 检查可执行任务...")
-            
+
             # 获取就绪任务
             ready_tasks = self.task_graph.get_ready_tasks()
-            
+
             if not ready_tasks:
                 if self.task_graph.has_pending_tasks():
                     # 有任务但未就绪，可能有循环依赖
@@ -201,11 +232,11 @@ class SwarmOrchestrator:
                 else:
                     # 所有任务完成
                     break
-            
+
             if self.verbose:
                 task_ids = [t.id for t in ready_tasks]
                 print(f"[就绪] {len(ready_tasks)} 个任务：{', '.join(task_ids)}")
-            
+
             # 并行执行就绪任务
             execution_tasks = []
             for task in ready_tasks:
@@ -213,11 +244,11 @@ class SwarmOrchestrator:
                 agent = await self.scheduler.assign_task(task)
                 if agent:
                     execution_tasks.append(self._execute_task(task, agent))
-            
+
             if execution_tasks:
                 # 并行执行
                 results = await asyncio.gather(*execution_tasks, return_exceptions=True)
-                
+
                 # 处理结果
                 for task, result in zip(ready_tasks, results):
                     if isinstance(result, Exception):
@@ -233,12 +264,92 @@ class SwarmOrchestrator:
                         tasks_failed += 1
                         if self.verbose:
                             print(f"[失败] 任务 {task.id}")
-            
+
             # 检查是否有进展
             if not execution_tasks and not ready_tasks:
                 break
-        
+
         # 生成最终结果
+        return self._synthesize_results(original_task, tasks_completed, tasks_failed)
+
+    async def _execute_loop_v2(self, original_task: str) -> SwarmResult:
+        """
+        v2 执行循环 - 使用 ParallelWorkflow 进行真正并行执行
+
+        适用于无依赖或依赖关系简单的任务
+        """
+        start_time = time.time()
+        tasks_completed = 0
+        tasks_failed = 0
+
+        if self.verbose:
+            print(f"\n[v2 执行] 使用并行工作流执行...")
+
+        # 获取所有任务
+        all_tasks = self.task_graph.get_all_tasks()
+
+        # 检查是否有复杂依赖
+        has_dependencies = any(t.dependencies for t in all_tasks)
+
+        if has_dependencies:
+            # 有依赖，使用 v2 调度器的并行执行
+            if self.verbose:
+                print(f"[v2 执行] 检测到依赖，使用 DynamicScheduler 处理...")
+
+            # 构建调度器
+            self.scheduler.build_from_tasks(all_tasks)
+
+            # 执行
+            exec_result = await self.scheduler.execute_all_parallel(verbose=self.verbose)
+
+            # 统计
+            tasks_completed = sum(
+                1 for t in all_tasks if t.status == TaskStatus.COMPLETED
+            )
+            tasks_failed = sum(
+                1 for t in all_tasks if t.status == TaskStatus.FAILED
+            )
+        else:
+            # 无依赖，使用 ParallelWorkflow
+            if self.verbose:
+                print(f"[v2 执行] 无依赖，使用 ParallelWorkflow 并行执行...")
+
+            # 创建并行工作流
+            workflow = create_parallel_workflow(
+                max_concurrent=self.max_concurrent,
+                continue_on_error=True
+            )
+
+            # 添加任务
+            for task in all_tasks:
+                # 选择 Agent
+                agent = await self.scheduler.assign_task(task)
+                if agent:
+                    workflow.add_task(
+                        name=f"Task {task.id}",
+                        agent=agent,
+                        instance_id=task.id,
+                        output_key=f"result_{task.id}"
+                    )
+
+            # 执行
+            exec_results = await workflow.execute(
+                original_task,
+                verbose=self.verbose
+            )
+
+            # 更新任务状态
+            for task_id, result in exec_results.items():
+                task = self.task_graph.get_task(task_id)
+                if task:
+                    if result.success:
+                        task.mark_completed(str(result.result))
+                        tasks_completed += 1
+                    else:
+                        task.mark_failed(result.error or "Unknown error")
+                        tasks_failed += 1
+
+        # 生成结果
         return self._synthesize_results(original_task, tasks_completed, tasks_failed)
     
     async def _execute_task(self, task: Task, agent: Any) -> bool:
@@ -436,8 +547,12 @@ class SwarmOrchestrator:
             "running": sum(1 for t in all_tasks if t.status == TaskStatus.RUNNING),
             "completed": sum(1 for t in all_tasks if t.status == TaskStatus.COMPLETED),
             "failed": sum(1 for t in all_tasks if t.status == TaskStatus.FAILED),
-            "blackboard_keys": list(self.blackboard.get_all().keys())
+            "blackboard_keys": list(self.blackboard.get_all().keys()),
+            "v2_scheduler": self.use_v2_scheduler,
+            "parallel_workflow": self.use_parallel_workflow
         }
     
     def __repr__(self) -> str:
-        return f"<SwarmOrchestrator agents={len(self.agent_pool)} running={self._running}>"
+        v2_info = "v2" if self.use_v2_scheduler else "v1"
+        parallel_info = "+parallel" if self.use_parallel_workflow else ""
+        return f"<SwarmOrchestrator agents={len(self.agent_pool)} running={self._running} {v2_info}{parallel_info}>"
