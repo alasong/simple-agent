@@ -3,7 +3,7 @@ Agent 协作工具
 
 支持 Agent 之间的协作：
 - InvokeAgentTool: 调用其他 Agent 执行子任务
-- CreateWorkflowTool: 创建工作流并执行
+- CreateWorkflowTool: 创建工作流并执行（支持并行）
 - ListAgentsTool: 列出可用的 Agent 类型
 """
 
@@ -31,14 +31,14 @@ def get_verbose() -> bool:
 
 class InvokeAgentTool(BaseTool):
     """调用其他 Agent 执行子任务"""
-    
+
     @property
     def name(self) -> str:
         return "InvokeAgentTool"
-    
+
     @property
     def description(self) -> str:
-        return "调用指定的专业 Agent 执行子任务。适用于需要将任务分解给专业 Agent 的场景。"
+        return "调用指定的专业 Agent 执行子任务。适用于需要将任务分解给专业 Agent 的场景。**支持并行调用多个 Agent**。"
     
     @property
     def parameters(self) -> dict:
@@ -94,16 +94,16 @@ class InvokeAgentTool(BaseTool):
 
 
 class CreateWorkflowTool(BaseTool):
-    """创建工作流并执行"""
-    
+    """创建工作流并执行（支持并行）"""
+
     @property
     def name(self) -> str:
         return "CreateWorkflowTool"
-    
+
     @property
     def description(self) -> str:
-        return "根据任务描述自动创建工作流，并按顺序执行多个 Agent。适用于多步骤复杂任务。"
-    
+        return "根据任务描述创建工作流并执行。**支持并行执行多个 Agent**，适用于多步骤复杂任务。"
+
     @property
     def parameters(self) -> dict:
         return {
@@ -121,59 +121,104 @@ class CreateWorkflowTool(BaseTool):
                         "properties": {
                             "name": {"type": "string", "description": "步骤名称"},
                             "agent_type": {"type": "string", "description": "使用的 Agent 类型"},
-                            "description": {"type": "string", "description": "该步骤的任务描述"}
+                            "description": {"type": "string", "description": "该步骤的任务描述"},
+                            "parallel": {"type": "boolean", "description": "是否与上一步并行执行（默认 false）"}
                         },
                         "required": ["name", "agent_type", "description"]
                     }
+                },
+                "parallel": {
+                    "type": "boolean",
+                    "description": "是否启用并行执行模式（默认 true，适用于步骤之间无依赖的情况）"
                 }
             },
             "required": ["task_description"]
         }
-    
-    def execute(self, task_description: str, steps: Optional[list] = None, **kwargs) -> ToolResult:
+
+    def execute(self, task_description: str, steps: Optional[list] = None, parallel: bool = True, **kwargs) -> ToolResult:
         """创建并执行工作流"""
         try:
-            from core.workflow import Workflow, generate_workflow
+            from core.workflow import Workflow, ParallelWorkflow, generate_workflow, create_parallel_workflow
             from core.factory import create_agent
             from core.agent_manager import get_agent
-            
+
             verbose = get_verbose()
-            
+
             if verbose:
                 print(f"\n[CreateWorkflow] 创建工作流...")
                 print(f"[CreateWorkflow] 任务：{task_description}")
-            
+                print(f"[CreateWorkflow] 并行模式：{parallel}")
+
             if steps:
-                workflow = Workflow(name="动态工作流", description=task_description)
-                for i, step_config in enumerate(steps):
-                    try:
-                        agent = get_agent(step_config["agent_type"])
-                    except (ImportError, ValueError):
-                        agent = create_agent(description=step_config["description"], tags=[])
-                    
-                    workflow.add_step(
-                        name=step_config["name"],
-                        agent=agent,
-                        output_key=f"step_{i}"
-                    )
+                # 有指定步骤，判断是否启用并行
+                if parallel:
+                    # 创建并行工作流
+                    workflow = create_parallel_workflow(max_concurrent=5, default_timeout=300.0)
+                    for i, step_config in enumerate(steps):
+                        try:
+                            agent = get_agent(step_config["agent_type"])
+                        except (ImportError, ValueError):
+                            agent = create_agent(description=step_config["description"], tags=[])
+
+                        workflow.add_task(
+                            name=step_config["name"],
+                            agent=agent,
+                            instance_id=f"step_{i}",
+                            task_input=step_config["description"]
+                        )
+
+                    if verbose:
+                        print(f"\n[CreateWorkflow] 执行并行工作流，{len(workflow.tasks)} 个任务...")
+
+                    import asyncio
+                    results = asyncio.run(workflow.execute(task_description, verbose=verbose))
+
+                    # 合并结果
+                    result_parts = []
+                    for task_id, result in results.items():
+                        if result.success:
+                            result_parts.append(f"[{task_id}] {result.result.result if result.result else '完成'}")
+                        else:
+                            result_parts.append(f"[{task_id}] 失败：{result.error}")
+                    result = "\n\n".join(result_parts)
+                else:
+                    # 创建顺序工作流
+                    workflow = Workflow(name="动态工作流", description=task_description)
+                    for i, step_config in enumerate(steps):
+                        try:
+                            agent = get_agent(step_config["agent_type"])
+                        except (ImportError, ValueError):
+                            agent = create_agent(description=step_config["description"], tags=[])
+
+                        workflow.add_step(
+                            name=step_config["name"],
+                            agent=agent,
+                            output_key=f"step_{i}"
+                        )
+
+                    if verbose:
+                        print(f"\n[CreateWorkflow] 执行顺序工作流，{len(workflow.steps)} 个步骤...")
+
+                    context = workflow.run(task_description, verbose=verbose)
+                    result = context.get("_last_output", "工作流执行完成")
             else:
+                # 无指定步骤，使用默认顺序工作流
                 workflow = generate_workflow(task_description, verbose=verbose)
-            
-            if verbose:
-                print(f"\n[CreateWorkflow] 执行工作流，{len(workflow.steps)} 个步骤...")
-            
-            # 执行工作流时传递 verbose
-            context = workflow.run(task_description, verbose=verbose)
-            result = context.get("_last_output", "工作流执行完成")
-            
+
+                if verbose:
+                    print(f"\n[CreateWorkflow] 执行工作流，{len(workflow.steps)} 个步骤...")
+
+                context = workflow.run(task_description, verbose=verbose)
+                result = context.get("_last_output", "工作流执行完成")
+
             if verbose:
                 print(f"\n[CreateWorkflow] 工作流完成")
-            
+
             return ToolResult(
                 success=True,
                 output=result,
             )
-            
+
         except Exception as e:
             return ToolResult(
                 success=False,
