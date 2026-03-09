@@ -157,7 +157,7 @@ class CLIAgent:
     def _llm_judge_complexity(self, user_input: str, verbose: bool = True) -> bool:
         """
         使用 LLM 判断任务复杂度
-        
+
         Returns:
             True: 复杂任务（需要规划）
             False: 简单任务（直接处理）
@@ -167,8 +167,10 @@ class CLIAgent:
 用户输入：{user_input}
 
 判断标准：
-- 简单任务：单一问题、概念解释、代码片段、翻译、计算、信息查询
-- 复杂任务：需要多步骤、多工具协作、系统设计、流程规划、分析研究
+- 简单任务：单一问题、概念解释、代码片段、翻译、计算、**信息查询**（如天气、新闻、时间、政策、安排等）
+- 复杂任务：需要多步骤、多工具协作、系统设计、流程规划、分析研究、项目执行
+
+注意：用户查询类问题（如"xxx 安排"、"xxx 时间"、"xxx 政策"）通常是简单信息查询，不是复杂任务。
 
 请只回答一个词：simple 或 complex"""
 
@@ -179,21 +181,21 @@ class CLIAgent:
             ]
             response = self.llm.chat(messages)
             result = (response.get("content") or "").strip().lower()
-            
+
             # 解析结果
             is_complex = "complex" in result
-            
+
             if verbose:
                 reason = "复杂任务" if is_complex else "简单任务"
                 print(f"[CLI Agent] LLM 判断结果：{reason} (原始响应：{result})")
-            
+
             return is_complex
-            
+
         except Exception as e:
             # LLM 判断失败时，降级使用长度启发式
             if verbose:
                 print(f"[CLI Agent] LLM 判断失败：{e}，降级使用规则判断")
-            
+
             # 降级规则
             if len(user_input) > 100:
                 return True
