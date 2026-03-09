@@ -10,13 +10,15 @@ CLI Agent - 统一的用户交互入口
 
 配置驱动：从 builtin_agents/configs/cli.json 加载
 支持会话记忆：保持多轮对话上下文
+
+上下文注入：在任务判断和执行前注入时间、地点等基本信息
 """
 
 import asyncio
 import os
 import time
 from datetime import datetime
-from typing import Optional, Any
+from typing import Optional, Any, Dict
 
 from core.llm import OpenAILLM
 from core.config_loader import get_config
@@ -25,6 +27,121 @@ from core.task_handle import TaskHandle
 
 # 导入提示词配置，避免硬编码
 from configs.cli_prompts import PromptTemplates, WeekdayConfig
+
+
+class ContextInjector:
+    """
+    上下文注入器 - 在任务执行前注入基本信息
+
+    注入的信息包括:
+    - 时间上下文：当前日期、时间、星期、季节
+    - 地点上下文：用户位置（如果有）
+    - 任务分类：时间相关/地点相关/政策相关等
+    """
+
+    @staticmethod
+    def get_time_context() -> Dict[str, Any]:
+        """获取时间上下文"""
+        now = datetime.now()
+        weekday_str = WeekdayConfig.get_weekday(now.weekday())
+
+        # 判断季节
+        month = now.month
+        if month in [3, 4, 5]:
+            season = "春季"
+        elif month in [6, 7, 8]:
+            season = "夏季"
+        elif month in [9, 10, 11]:
+            season = "秋季"
+        else:
+            season = "冬季"
+
+        # 判断学期状态（针对学校相关查询）
+        if month in [2, 3, 4, 5, 6, 7]:
+            semester = "下学期（春季学期）"
+        elif month in [8, 9, 10, 11, 12, 1]:
+            semester = "上学期（秋季学期）"
+        else:
+            semester = "未知"
+
+        # 判断暑假/寒假期间
+        is_summer_vacation = month in [7, 8]
+        is_winter_vacation = month in [1, 2]
+
+        return {
+            "date": now.strftime("%Y 年%m 月%d 日"),
+            "time": now.strftime("%H:%M:%S"),
+            "weekday": weekday_str,
+            "season": season,
+            "semester": semester,
+            "is_summer_vacation": is_summer_vacation,
+            "is_winter_vacation": is_winter_vacation,
+            "month": month,
+        }
+
+    @staticmethod
+    def build_context_string(user_input: str, verbose: bool = True) -> str:
+        """
+        构建上下文注入字符串
+
+        Args:
+            user_input: 用户输入
+            verbose: 是否打印日志
+
+        Returns:
+            上下文注入字符串
+        """
+        time_ctx = ContextInjector.get_time_context()
+
+        # 检测用户输入类型，决定注入哪些上下文
+        context_parts = []
+
+        # 时间相关查询：注入详细时间信息
+        time_keywords = ["今天", "日期", "时间", "星期", "放假", "开学", "暑假", "寒假", "安排"]
+        if any(kw in user_input for kw in time_keywords):
+            context_parts.append(
+                f"[当前时间信息] {time_ctx['date']}，{time_ctx['weekday']}，{time_ctx['time']}，"
+                f"当前是{time_ctx['season']}{time_ctx['semester']}"
+            )
+            if time_ctx['is_summer_vacation']:
+                context_parts.append("[当前状态] 正值暑假期间")
+            elif time_ctx['is_winter_vacation']:
+                context_parts.append("[当前状态] 正值寒假期间")
+
+        # 地点相关查询：注入位置信息（如果有）
+        location_keywords = ["天气", "位置", "地点", "哪里", "在哪", "北京", "上海", "广州"]
+        if any(kw in user_input for kw in location_keywords):
+            # 可以尝试获取用户位置
+            try:
+                # 这里可以添加位置检测逻辑
+                pass
+            except Exception:
+                pass
+
+        if context_parts:
+            return "\n".join(context_parts)
+        return ""
+
+    @staticmethod
+    def inject_context(user_input: str, verbose: bool = True) -> str:
+        """
+        将上下文注入到用户输入中
+
+        Args:
+            user_input: 用户输入
+            verbose: 是否打印日志
+
+        Returns:
+            注入上下文后的用户输入
+        """
+        context = ContextInjector.build_context_string(user_input, verbose)
+
+        if context:
+            if verbose:
+                print(f"\n[上下文注入] 已注入:\n{context}")
+            return f"{context}\n\n用户问题：{user_input}"
+
+        return user_input
 
 # 注意：不再需要 import tools 副作用导入
 # 常用工具（BashTool, ReadFileTool, WriteFileTool）已默认导出
@@ -111,48 +228,50 @@ class CLIAgent:
     def _is_complex_task(self, user_input: str, verbose: bool = True) -> bool:
         """
         判断是否为复杂任务 - 采用两级判断策略
-        
+
         第一级：快速规则过滤（明显的简单任务）
-        第二级：LLM 语义判断（不确定的任务）
+        第二级：LLM 语义判断（不确定的任务，注入上下文）
         """
         # ========== 第一级：快速规则过滤 ==========
-        
+
         # 空输入或极短输入视为简单任务
         if not user_input or len(user_input.strip()) < 5:
             if verbose:
                 print("[CLI Agent] 任务判断：极短输入 -> 简单任务")
             return False
-        
+
         # 明显的简单任务模式（直接返回，不调用 LLM）
         simple_patterns = [
             "你好", "您好", "hello", "hi",  # 问候
             "谢谢", "感谢", "bye", "再见",  # 礼貌用语
             "你是谁", "你能做什么", "介绍下",  # 基础问答
         ]
-        
+
         for pattern in simple_patterns:
             if pattern in user_input.lower():
                 if verbose:
                     print(f"[CLI Agent] 任务判断：匹配简单模式 '{pattern}' -> 简单任务")
                 return False
-        
+
         # 明显的复杂任务模式（多步骤、多条件）
         complex_patterns = [
             "工作流", "CI/CD", "部署流程", "测试流程",
         ]
-        
+
         for pattern in complex_patterns:
             if pattern in user_input:
                 if verbose:
                     print(f"[CLI Agent] 任务判断：匹配复杂模式 '{pattern}' -> 复杂任务")
                 return True
-        
-        # ========== 第二级：LLM 语义判断 ==========
-        
+
+        # ========== 第二级：LLM 语义判断（注入上下文） ==========
+
         if verbose:
             print("[CLI Agent] 任务判断：规则无法确定，使用 LLM 判断...")
-        
-        return self._llm_judge_complexity(user_input, verbose)
+
+        # 注入上下文后让 LLM 判断
+        enhanced_input = ContextInjector.inject_context(user_input, verbose)
+        return self._llm_judge_complexity(enhanced_input, verbose)
     
     def _llm_judge_complexity(self, user_input: str, verbose: bool = True) -> bool:
         """
@@ -295,22 +414,25 @@ class CLIAgent:
                              isolate_by_instance: bool = False) -> Any:
         """处理复杂任务 - 委托给 Planner Agent"""
         planner = self._get_planner()
-        
+
         if verbose:
             print(f"\n[CLI Agent] 委托给 Planner Agent 进行任务分解...")
             print(f"[CLI Agent] Planner: {planner.name}")
-        
-        # Planner Agent 负责处理复杂任务
-        result = planner.run(user_input, verbose=verbose)
-        
+
+        # 注入上下文后委托给 Planner
+        enhanced_input = ContextInjector.inject_context(user_input, verbose)
+
+        # Planner Agent 负责处理复杂任务（注入上下文后的输入）
+        result = planner.run(enhanced_input, verbose=verbose)
+
         # 保存输出到文件，并获取保存的路径
         saved_path = None
         if output_dir:
             saved_path = self._save_output(output_dir, result, user_input, isolate_by_instance)
-        
+
         if verbose:
             print(f"\n[CLI Agent] 复杂任务处理完成")
-        
+
         # 返回结果和保存路径
         return result, saved_path
     
