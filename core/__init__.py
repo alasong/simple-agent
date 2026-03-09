@@ -17,7 +17,7 @@
 from .tool import BaseTool, ToolResult, ToolRegistry
 from .memory import Memory
 from .llm import LLMInterface, OpenAILLM
-from .agent import Agent, AgentInfo
+from .agent import Agent, AgentInfo, AgentErrorEnhancer
 from .resource import (
     ResourceRepository, repo,
     ToolEntry, LLMEntry,
@@ -30,12 +30,7 @@ from .factory import (
 from .workflow import Workflow, WorkflowStep, StepResult, ResultType, create_workflow, generate_workflow
 from .workflow_generator import WorkflowGenerator
 
-# 模块化组件（架构改进）
-from .agent_core import AgentCore
-from .agent_serializer import AgentSerializer
-from .agent_error_enhancer import AgentErrorEnhancer
-from .agent_cloner import AgentCloner
-from .container import DIContainer, get_container
+# 模块化组件
 from .strategies import (
     ExecutionStrategy,
     ExecutionResult,
@@ -72,17 +67,8 @@ __all__ = [
     "OpenAILLM",
     "Agent",
     "AgentInfo",
-    
-    # 模块化组件
-    "AgentCore",
-    "AgentSerializer",
     "AgentErrorEnhancer",
-    "AgentCloner",
-    
-    # 依赖注入
-    "DIContainer",
-    "get_container",
-    
+
     # 策略模式
     "ExecutionStrategy",
     "ExecutionResult",

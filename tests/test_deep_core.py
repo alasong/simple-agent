@@ -239,7 +239,6 @@ class TestDeepSwarmOrchestration:
         swarm = SwarmOrchestrator(
             agent_pool=agents,
             llm=None,  # 使用 mock agent，不需要 LLM
-            use_v2_scheduler=False,  # 使用 v1 调度器
             verbose=False,
             max_iterations=3
         )
@@ -273,7 +272,6 @@ class TestDeepSwarmOrchestration:
         swarm = SwarmOrchestrator(
             agent_pool=agents,
             llm=None,
-            use_v2_scheduler=False,
             verbose=False,
             max_iterations=3
         )

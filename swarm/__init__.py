@@ -8,10 +8,10 @@ Swarm - 群体智能系统
 - 协作模式
 """
 
-from .orchestrator import SwarmOrchestrator, SwarmResult, Task
+from .orchestrator import SwarmOrchestrator, SwarmResult, SwarmOrchestratorBuilder
 from .blackboard import Blackboard, Change
 from .message_bus import MessageBus
-from .scheduler import TaskScheduler, TaskDecomposer, TaskGraph, TaskStatus
+from .scheduler import Task, TaskScheduler, TaskDecomposer, TaskGraph, TaskStatus, TaskSchedulerV2
 from .collaboration_patterns import (
     PairProgramming,
     SwarmBrainstorming,
@@ -24,11 +24,13 @@ from .scaling import DynamicScaling, AutoScalingOrchestrator, AgentFactory, Scal
 __all__ = [
     "SwarmOrchestrator",
     "SwarmResult",
+    "SwarmOrchestratorBuilder",
     "Task",
     "Blackboard",
     "Change",
     "MessageBus",
     "TaskScheduler",
+    "TaskSchedulerV2",
     "TaskDecomposer",
     "TaskGraph",
     "TaskStatus",
