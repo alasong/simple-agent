@@ -37,7 +37,7 @@ from cli_commands import (
     CommandHandler, CommandResult,
     get_all_commands, get_session_commands,
     get_agent_commands, get_workflow_commands,
-    get_debug_commands, get_task_commands
+    get_debug_commands, get_task_commands, get_daemon_commands
 )
 
 
@@ -145,12 +145,18 @@ class CommandRouter:
             'switch': 'Agent 管理',
             'save': 'Agent 管理',
             'load': 'Agent 管理',
+            'start': '守护进程',
+            'stop': '守护进程',
+            'restart': '守护进程',
+            'status': '守护进程',
+            'logs': '守护进程',
+            'install-service': '守护进程',
         }
-        
+
         for handler in self._handlers.values():
             category = categories.get(handler.name.split()[0], '其他')
             lines.append(f"  /{handler.name:20} - {handler.description}")
-        
+
         return "\n".join(lines)
 
 

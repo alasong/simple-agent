@@ -55,6 +55,56 @@ OUTPUT_DIR = os.path.abspath(_config.get('directories.cli_output', './output/cli
 OUTPUT_ROOT = os.path.abspath(_config.get('directories.output_root', './output'))
 
 
+# ============================================================================
+# Tab 自动补全
+# ============================================================================
+
+def setup_readline_completer():
+    """设置 readline 自动补全"""
+    try:
+        import gnureadline as readline
+    except ImportError:
+        try:
+            import readline
+        except ImportError:
+            return False
+
+    # 命令补全列表
+    CLI_COMMANDS = [
+        # 内部命令
+        '/help',
+        '/exit',
+        '/list',
+        '/load',
+        '/workflow',
+        '/agents',
+        '/status',
+        '/clear',
+        # 守护进程命令
+        '/start',
+        '/stop',
+        '/restart',
+        '/logs',
+        '/install-service',
+    ]
+
+    def completer(text, state):
+        """补全函数"""
+        try:
+            # 直接补全所有匹配的命令
+            options = [cmd for cmd in CLI_COMMANDS if cmd.startswith(text)]
+            if state < len(options):
+                return options[state]
+            return None
+        except Exception:
+            return None
+
+    readline.set_completer(completer)
+    readline.set_completer_delims(' \t\n')
+    readline.parse_and_bind("tab: complete")
+    return True
+
+
 def handle_daemon_commands(args):
     """处理守护进程命令"""
     try:
@@ -143,19 +193,16 @@ def handle_daemon_commands(args):
 
 def interactive_mode(coordinator: CLICoordinator):
     """交互模式"""
-    # 设置 readline 自动补全（可选）
-    try:
-        import readline
-        # 简化版，暂时不实现复杂补全
-    except ImportError:
-        pass
+    # 设置 readline 自动补全
+    if setup_readline_completer():
+        print("[Tab 补全] 已启用")
 
     print()
     print(f"{'='*60}")
     print("CLI Agent - 智能任务助手 (精简版)")
     print(f"{'='*60}")
     print("\n命令：/help | /exit | /list | /load | /workflow ...")
-    print("守护进程：--start | --stop | --restart | --status | --logs")
+    print("守护进程：/start | /stop | /restart | /logs | /install-service")
     print("(使用 Tab 可补全命令)")
     
     while True:

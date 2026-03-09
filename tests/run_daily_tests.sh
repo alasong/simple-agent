@@ -16,24 +16,29 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # 检查虚拟环境
-if [ ! -d "./venv" ]; then
-    echo -e "${RED}错误：未找到虚拟环境 ./venv${NC}"
+if [ ! -d "./.venv" ]; then
+    echo -e "${RED}错误：未找到虚拟环境 ./.venv${NC}"
     exit 1
 fi
 
 # 运行核心深度测试
-echo -e "${YELLOW}[1/3] 运行核心深度测试...${NC}"
-./venv/bin/python -m pytest tests/test_deep_core.py -v --tb=short
+echo -e "${YELLOW}[1/4] 运行核心深度测试...${NC}"
+./.venv/bin/python -m pytest tests/test_deep_core.py -v --tb=short
 
 # 运行工具测试
 echo ""
-echo -e "${YELLOW}[2/3] 运行工具执行测试...${NC}"
-./venv/bin/python -m pytest tests/test_tool_execution.py -v --tb=short -x
+echo -e "${YELLOW}[2/4] 运行工具执行测试...${NC}"
+./.venv/bin/python -m pytest tests/test_tool_execution.py -v --tb=short -x
 
 # 运行领域测试
 echo ""
-echo -e "${YELLOW}[3/3] 运行领域测试...${NC}"
-./venv/bin/python -m pytest tests/test_domains.py -v --tb=short -x
+echo -e "${YELLOW}[3/4] 运行领域测试...${NC}"
+./.venv/bin/python -m pytest tests/test_domains.py -v --tb=short -x
+
+# 运行 CLI Tab 补全测试
+echo ""
+echo -e "${YELLOW}[4/4] 运行 CLI Tab 补全测试...${NC}"
+./.venv/bin/python -m pytest tests/test_cli_tab_completion.py -v --tb=short
 
 echo ""
 echo "========================================"

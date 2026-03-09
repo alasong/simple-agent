@@ -9,6 +9,7 @@ CLI 命令处理模块
 - workflow_cmds: 工作流命令
 - debug_cmds: 调试命令
 - task_cmds: 任务管理命令
+- daemon_cmds: 守护进程命令
 """
 
 from typing import Dict, Type, List, Any, Optional
@@ -136,7 +137,24 @@ def get_all_commands() -> List[CommandHandler]:
     commands.extend(get_workflow_commands())
     commands.extend(get_debug_commands())
     commands.extend(get_task_commands())
+    commands.extend(get_daemon_commands())
     return commands
+
+
+def get_daemon_commands() -> List[CommandHandler]:
+    """获取守护进程命令"""
+    from .daemon_cmds import (
+        StartDaemonCommand, StopDaemonCommand, RestartDaemonCommand,
+        StatusDaemonCommand, LogsDaemonCommand, InstallServiceCommand
+    )
+    return [
+        StartDaemonCommand(),
+        StopDaemonCommand(),
+        RestartDaemonCommand(),
+        StatusDaemonCommand(),
+        LogsDaemonCommand(),
+        InstallServiceCommand(),
+    ]
 
 
 __all__ = [
