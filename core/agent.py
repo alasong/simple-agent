@@ -16,7 +16,7 @@ from datetime import datetime
 
 from .tool import BaseTool, ToolResult, ToolRegistry
 from .memory import Memory
-from .llm import LLMInterface, OpenAILLM
+from .llm import LLM, OpenAILLM, LLMInterface
 
 
 @dataclass
@@ -60,7 +60,7 @@ class Agent:
         instance_id: Optional[str] = None
     ):
         # 核心组件
-        self.llm = llm or OpenAILLM()
+        self.llm = llm or LLM()
         self.name = name
         self.version = version
         self.description = description

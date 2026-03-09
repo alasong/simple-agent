@@ -16,7 +16,7 @@
 
 from .tool import BaseTool, ToolResult, ToolRegistry
 from .memory import Memory
-from .llm import LLMInterface, OpenAILLM
+from .llm import LLM, OpenAILLM, LLMInterface
 from .agent import Agent, AgentInfo, AgentErrorEnhancer
 from .resource import (
     ResourceRepository, repo,

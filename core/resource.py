@@ -13,7 +13,7 @@ from typing import Optional, Dict, List, Any
 from dataclasses import dataclass, field
 
 from .tool import BaseTool
-from .llm import LLMInterface, OpenAILLM
+from .llm import LLM, OpenAILLM, LLMInterface
 from .agent import Agent
 
 
@@ -206,7 +206,7 @@ class ResourceRepository:
         llm = self.get_llm(name)
         if not llm:
             # 自动创建默认 LLM
-            llm = OpenAILLM()
+            llm = LLM()
             self.register_llm(llm, "default")
         return llm
 
