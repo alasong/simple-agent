@@ -35,7 +35,7 @@ tools:
   - ReadFileTool
   - WriteFileTool
   - CheckFileExistsTool
-  - RunCommandTool
+  - BashTool
 max_iterations: 15
 domains:
   - software_engineering

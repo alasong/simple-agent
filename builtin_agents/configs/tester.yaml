@@ -30,7 +30,7 @@ tools:
   - ReadFileTool
   - WriteFileTool
   - CheckFileExistsTool
-  - RunCommandTool
+  - BashTool
   - CheckPythonSyntaxTool
 max_iterations: 15
 domains:
