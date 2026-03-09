@@ -88,7 +88,9 @@ Simple Agent 是一个多 Agent 协作系统，支持群体智能、任务自动
 - `agent.py` - Agent 基类
 - `agent_enhanced.py` - 增强版 Agent
 - `dynamic_scheduler.py` - 动态调度器（v2 新增）
-- `workflow.py` - 工作流编排（支持并行执行）
+- `workflow.py` - 工作流编排（顺序执行）
+- `workflow_types.py` - 工作流类型定义（ResultType, StepResult, etc.）
+- `workflow_parallel.py` - 并行工作流执行（ParallelWorkflow, ParallelStep）
 - `task_decomposer.py` - 多级任务分解器
 - `dependency_graph.py` - 依赖图管理器
 
@@ -129,7 +131,7 @@ results = await scheduler.schedule_and_execute(agent_pool=agents, parallel=True)
 
 ### ParallelWorkflow (并行工作流)
 ```python
-from core.workflow import create_parallel_workflow
+from core.workflow_parallel import create_parallel_workflow
 
 workflow = create_parallel_workflow(max_concurrent=3, default_timeout=60.0)
 workflow.add_task("Task A", agent_a, instance_id="project-a")

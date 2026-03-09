@@ -9,12 +9,15 @@
 Agent 创建时从仓库抽取所需资源
 """
 
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, TYPE_CHECKING
 from dataclasses import dataclass, field
 
 from .tool import BaseTool
 from .llm import LLM, OpenAILLM, LLMInterface
-from .agent import Agent
+
+# 避免循环依赖：使用 TYPE_CHECKING 进行类型注解
+if TYPE_CHECKING:
+    from .agent import Agent
 
 
 @dataclass
@@ -59,7 +62,7 @@ class ResourceRepository:
         self._tool_tags: Dict[str, List[str]] = {}
         
         # Agent 注册表
-        self._agents: Dict[str, Agent] = {}
+        self._agents: Dict[str, 'Agent'] = {}
     
     # ==================== 工具管理 ====================
     
@@ -128,15 +131,15 @@ class ResourceRepository:
     
     # ==================== Agent 注册表 ====================
     
-    def register_agent(self, agent: Agent):
+    def register_agent(self, agent: 'Agent'):
         """注册已创建的 Agent"""
         self._agents[agent.name] = agent
     
-    def get_agent(self, name: str) -> Optional[Agent]:
+    def get_agent(self, name: str) -> Optional['Agent']:
         """获取已创建的 Agent"""
         return self._agents.get(name)
     
-    def list_agents(self) -> Dict[str, Agent]:
+    def list_agents(self) -> Dict[str, 'Agent']:
         """列出所有 Agent"""
         return self._agents.copy()
     

@@ -404,7 +404,10 @@ cli_new.py                   # 精简版 CLI 入口
 core/
 ├── task_decomposer.py       # 多级任务分解器
 ├── dependency_graph.py      # 依赖图管理器
-└── dynamic_scheduler.py     # 动态调度器 ✅
+├── dynamic_scheduler.py     # 动态调度器 ✅
+├── workflow_types.py        # 工作流类型定义 ✅
+├── workflow_parallel.py     # 并行工作流执行 ✅
+└── workflow.py              # 顺序工作流（精简后）✅
 swarm/
 ├── scheduler.py             # 调度器 (添加 v2 支持) ✅
 └── orchestrator.py          # 群体智能控制器 (添加 v2 支持) ✅
@@ -416,10 +419,11 @@ tests/
 
 ### 修改文件
 - `requirements.txt` - 添加 networkx 依赖
-- `core/workflow.py` - 添加并行执行支持 ✅
+- `core/workflow.py` - 精简为顺序工作流 (~665 行) ✅
+- `core/workflow_types.py` - 新建：类型定义 (~75 行) ✅
+- `core/workflow_parallel.py` - 新建：并行工作流 (~475 行) ✅
 - `swarm/scheduler.py` - 添加 TaskSchedulerV2 ✅
 - `swarm/orchestrator.py` - 添加 v2 支持 ✅
-- `core/workflow.py` - 添加并行执行支持 ✅
 
 ---
 
@@ -490,3 +494,63 @@ print(f'Actions: {r.total_actions}')
 - ✅ `test_workflow_parallel.py` - 30 个测试
 - ✅ `test_swarm_integration.py` - 16 个测试
 - ✅ 总计：75 个测试
+
+---
+
+## Phase 5: 技术债务清理 ✅
+
+### 5.1 Workflow God 类拆分 ✅
+
+**问题**: `core/workflow.py` 包含 1200+ 行代码，混合了多种职责：
+- 顺序工作流逻辑
+- 并行工作流逻辑
+- 类型定义
+- 便捷函数
+
+**解决方案**: 模块化拆分
+
+#### 拆分后结构
+
+| 模块 | 行数 | 职责 |
+|------|------|------|
+| `core/workflow.py` | ~665 行 | 顺序工作流（Workflow, WorkflowStep） |
+| `core/workflow_types.py` | ~75 行 | 类型定义（ResultType, StepResult, StepType, ParallelExecutionResult） |
+| `core/workflow_parallel.py` | ~475 行 | 并行工作流（ParallelWorkflow, ParallelStep） |
+
+**代码量对比**:
+- 重构前：1217 行（单一文件）
+- 重构后：1217 行（3 个模块），但职责清晰、易于维护
+
+#### 模块依赖关系
+
+```
+workflow.py (顺序工作流)
+    ↓
+workflow_types.py (类型定义)
+    ↑
+workflow_parallel.py (并行工作流)
+```
+
+#### 导入兼容性
+
+为保持向后兼容，`core/workflow.py` 导出所有相关类型：
+
+```python
+# 从 workflow 模块导入（向后兼容）
+from core.workflow import (
+    Workflow, WorkflowStep, create_workflow,
+    ParallelWorkflow, ParallelStep, create_parallel_workflow,
+    ResultType, StepResult, StepType, ParallelExecutionResult
+)
+
+# 或者从子模块导入（推荐）
+from core.workflow_types import ResultType, StepResult
+from core.workflow_parallel import ParallelWorkflow
+```
+
+#### 测试验证
+
+所有 73 个关键测试通过：
+- ✅ `test_dynamic_scheduler.py` - 29 个测试
+- ✅ `test_workflow_parallel.py` - 30 个测试
+- ✅ `test_deep_core.py` - 14 个深度集成测试
