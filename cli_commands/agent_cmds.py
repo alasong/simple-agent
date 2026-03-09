@@ -318,6 +318,17 @@ class AgentLoadCommand(CommandHandler):
                 f"未找到 Agent: {name}",
                 "提示：使用 /list 查看可用的 agents"
             )
-        
+
         except Exception as e:
             return CommandResult.error("加载 Agent 失败", str(e))
+
+
+__all__ = [
+    'AgentNewCommand',
+    'AgentUpdateCommand',
+    'AgentSwitchCommand',
+    'AgentListCommand',
+    'AgentInfoCommand',
+    'AgentSaveCommand',
+    'AgentLoadCommand',
+]

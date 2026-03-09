@@ -97,7 +97,7 @@ def get_agent_commands() -> List[CommandHandler]:
         AgentListCommand(),
         AgentInfoCommand(),
         AgentSaveCommand(),
-        AgentLoadCommand()
+        AgentLoadCommand(),
     ]
 
 

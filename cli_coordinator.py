@@ -430,25 +430,33 @@ from cli_commands import CommandHandler
 
 class HelpCommand(CommandHandler):
     """帮助命令"""
-    
+
     @property
     def name(self) -> str:
         return "help"
-    
+
     @property
     def description(self) -> str:
         return "显示帮助信息"
-    
+
     def execute(self, args: List[str], context: Dict[str, Any]) -> CommandResult:
         router = context.get('router')  # 需要传入 router
-        
+
         if args:
             # 显示特定命令的帮助
             cmd_name = args[0]
-            # 这里需要 router 支持，简化处理
-            return CommandResult.ok(f"查看 {cmd_name} 的帮助信息")
+            handler = router.get_handler(cmd_name)
+            if handler:
+                help_text = f"""
+/{handler.name}
+  描述：{handler.description}
+  用法：{handler.usage}
+"""
+                return CommandResult.ok(help_text)
+            else:
+                return CommandResult.error(f"未知命令：{cmd_name}")
         else:
-            # 显示所有命令
+            # 显示所有命令 - 按分类显示
             help_text = """
 ===== 会话管理 =====
 /sessions          列出所有会话
@@ -457,31 +465,41 @@ class HelpCommand(CommandHandler):
 /session del <名称> 删除会话
 /clear             清空当前会话记忆
 
-===== 智能模式 =====
-/help              显示帮助
-/exit              退出
+===== Agent 管理 =====
+/new <描述>        创建新 Agent
+/update <描述>     更新当前 Agent 提示词
+/switch <名称>     切换到已创建的 Agent
+/list              列出所有 Agent
+/info              显示当前 Agent 详情
+/save              保存当前 Agent
+/load <名称>       加载 Agent
 
-===== 后台任务管理 =====
-/bg <任务>       后台执行任务，立即返回
-/tasks           列出所有后台任务
-/result <task_id> 查看任务结果
-/cancel <task_id> 取消任务
-/task_stats      查看任务统计
-
-===== 单 Agent 模式 =====
-/new <描述>     创建新 Agent
-/update <描述>  更新当前 Agent 提示词
-/switch <名称>  切换到已创建的 Agent
-/list           列出所有 Agent
-/info           显示当前 Agent 详情
-/save           保存当前 Agent
-/load <名称>    加载 Agent
-/workflow <文件> 加载并运行工作流
+===== 工作流 =====
+/workflow <文件>    加载并运行工作流
 
 ===== 调试 =====
 /debug [on|off]    切换调试模式
 /debug summary     显示调试摘要
 /debug stats       显示详细统计
+
+===== 后台任务管理 =====
+/bg <任务>         后台执行任务，立即返回
+/tasks             列出所有后台任务
+/result <task_id>  查看任务结果
+/cancel <task_id>  取消任务
+/task_stats        查看任务统计
+
+===== 守护进程 =====
+/start             启动 API 守护进程
+/stop              停止 API 守护进程
+/restart           重启 API 守护进程
+/status            查看守护进程状态
+/logs [行数]       查看日志（默认 50 行）
+/install-service   生成 systemd/launchd 服务配置
+
+===== 其他 =====
+/help              显示帮助信息
+/exit              退出程序
 """
             return CommandResult.ok(help_text)
 

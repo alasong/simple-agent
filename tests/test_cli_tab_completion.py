@@ -29,27 +29,48 @@ class TestCLITabCompletion:
         """测试命令列表定义正确"""
         # 直接测试命令列表，不依赖 readline
         CLI_COMMANDS = [
-            '/help', '/exit', '/list', '/load', '/workflow',
-            '/agents', '/status', '/clear',
-            '/start', '/stop', '/restart', '/logs', '/install-service',
+            # 会话管理
+            '/sessions', '/session', '/clear',
+            # Agent 管理
+            '/new', '/update', '/switch', '/list', '/info', '/save', '/load',
+            # 工作流
+            '/workflow',
+            # 调试
+            '/debug',
+            # 后台任务
+            '/bg', '/tasks', '/result', '/cancel', '/task_stats',
+            # 守护进程
+            '/start', '/stop', '/restart', '/status', '/logs', '/install-service',
+            # 其他
+            '/help', '/exit',
         ]
 
         # 验证基本命令存在
         assert '/help' in CLI_COMMANDS
         assert '/exit' in CLI_COMMANDS
-        assert '/list' in CLI_COMMANDS
-        assert '/workflow' in CLI_COMMANDS
         assert '/start' in CLI_COMMANDS
         assert '/stop' in CLI_COMMANDS
         assert '/status' in CLI_COMMANDS
         assert '/logs' in CLI_COMMANDS
+        assert '/list' in CLI_COMMANDS
 
     def test_command_completion_logic(self):
         """测试补全逻辑"""
         CLI_COMMANDS = [
-            '/help', '/exit', '/list', '/load', '/workflow',
-            '/agents', '/status', '/clear',
-            '/start', '/stop', '/restart', '/logs', '/install-service',
+            # 会话管理
+            '/sessions', '/session', '/clear',
+            # Agent 管理
+            '/new', '/update', '/switch', '/list', '/info', '/save', '/load',
+            # 工作流
+            '/workflow',
+            # 调试
+            '/debug',
+            # 后台任务
+            '/bg', '/tasks', '/result', '/cancel', '/task_stats',
+            # 守护进程
+            '/start', '/stop', '/restart', '/status', '/logs', '/install-service',
+            # 其他
+            '/help', '/exit',
         ]
 
         # 模拟补全逻辑
@@ -60,11 +81,13 @@ class TestCLITabCompletion:
         matches = complete('/h')
         assert '/help' in matches
 
-        # 测试 /s 应该匹配 /start, /stop, /status
+        # 测试 /s 应该匹配 /start, /stop, /status, /sessions, /session
         matches = complete('/s')
         assert '/start' in matches
         assert '/stop' in matches
         assert '/status' in matches
+        assert '/sessions' in matches
+        assert '/session' in matches
 
         # 测试未知命令返回空列表
         matches = complete('/xyz123')

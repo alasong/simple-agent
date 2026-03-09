@@ -69,23 +69,40 @@ def setup_readline_completer():
         except ImportError:
             return False
 
-    # 命令补全列表
+    # 命令补全列表（和 /help 显示的一致）
     CLI_COMMANDS = [
-        # 内部命令
-        '/help',
-        '/exit',
-        '/list',
-        '/load',
-        '/workflow',
-        '/agents',
-        '/status',
+        # 会话管理
+        '/sessions',
+        '/session',
         '/clear',
-        # 守护进程命令
+        # Agent 管理
+        '/new',
+        '/update',
+        '/switch',
+        '/list',
+        '/info',
+        '/save',
+        '/load',
+        # 工作流
+        '/workflow',
+        # 调试
+        '/debug',
+        # 后台任务
+        '/bg',
+        '/tasks',
+        '/result',
+        '/cancel',
+        '/task_stats',
+        # 守护进程
         '/start',
         '/stop',
         '/restart',
+        '/status',
         '/logs',
         '/install-service',
+        # 其他
+        '/help',
+        '/exit',
     ]
 
     def completer(text, state):
