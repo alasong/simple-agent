@@ -146,3 +146,52 @@ class HealthResponse(BaseModel):
     version: str = Field(..., description="服务版本")
     uptime: float = Field(..., description="运行时长（秒）")
     timestamp: datetime = Field(default_factory=datetime.now)
+
+
+# ============================================================================
+# 定时任务相关模型
+# ============================================================================
+
+class ScheduleType(str, Enum):
+    """调度类型"""
+    ONCE = "once"
+    INTERVAL = "interval"
+    CRON = "cron"
+
+
+class CreateScheduledTaskRequest(BaseModel):
+    """创建定时任务请求"""
+    name: str = Field(..., description="任务名称")
+    schedule_type: ScheduleType = Field(..., description="调度类型")
+    agent_name: str = Field(..., description="Agent 名称")
+    input: str = Field(..., description="任务输入")
+
+    # 调度配置（根据类型选择）
+    run_at: Optional[str] = Field(None, description="一次性执行时间 (ISO 格式)")
+    interval_seconds: Optional[int] = Field(None, ge=1, description="间隔秒数")
+    cron_expression: Optional[str] = Field(None, description="Cron 表达式")
+
+    config: Optional[Dict[str, Any]] = Field(default_factory=dict, description="配置选项")
+    description: Optional[str] = Field(None, description="任务描述")
+
+
+class ScheduledTaskInfo(BaseModel):
+    """定时任务信息"""
+    task_id: str = Field(..., description="任务 ID")
+    name: str = Field(..., description="任务名称")
+    schedule_type: ScheduleType = Field(..., description="调度类型")
+    agent_name: str = Field(..., description="Agent 名称")
+    enabled: bool = Field(..., description="是否启用")
+    last_run: Optional[str] = Field(None, description="最后执行时间")
+    next_run: Optional[str] = Field(None, description="下次执行时间")
+    total_runs: int = Field(..., description="执行次数")
+    failed_runs: int = Field(..., description="失败次数")
+    cron_expression: Optional[str] = Field(None, description="Cron 表达式")
+    interval_seconds: Optional[int] = Field(None, description="间隔秒数")
+    created_at: str = Field(..., description="创建时间")
+
+
+class ScheduledTaskListResponse(BaseModel):
+    """定时任务列表响应"""
+    tasks: List[ScheduledTaskInfo] = Field(..., description="任务列表")
+    total: int = Field(..., description="总数")

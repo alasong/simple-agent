@@ -23,3 +23,6 @@ pydantic>=2.0
 
 # YAML config loading
 pyyaml>=5.4
+
+# Task Scheduler
+schedule>=1.2.0

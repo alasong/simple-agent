@@ -96,6 +96,16 @@ def create_app() -> FastAPI:
         print(f"OpenAPI: http://localhost:8000/openapi.json")
         print("=" * 60)
 
+        # 启动定时任务调度器
+        from core.task_scheduler import get_scheduler
+        scheduler = get_scheduler()
+        scheduler.start()
+        print(f"[定时任务] 调度器已启动")
+
+        # 注册定时任务执行回调
+        scheduler._execute_callback = _execute_scheduled_task
+        print(f"[定时任务] 已注册执行回调")
+
         # 如果没有 API Key，生成一个默认的
         auth = get_auth()
         if not auth.list_keys():

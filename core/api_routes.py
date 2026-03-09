@@ -27,6 +27,10 @@ from .api_models import (
     WorkflowInfo,
     APIError,
     HealthResponse,
+    ScheduleType,
+    CreateScheduledTaskRequest,
+    ScheduledTaskInfo,
+    ScheduledTaskListResponse,
 )
 from .api_auth import get_auth, APIAuth
 from .usage_tracker import get_tracker
@@ -322,6 +326,229 @@ async def get_daily_usage(
     """获取每日用量统计"""
     tracker = get_tracker()
     return {"daily_usage": tracker.get_daily_usage(days)}
+
+
+# ============================================================================
+# 定时任务相关
+# ============================================================================
+
+@router.post(
+    "/schedule",
+    tags=["Scheduled Tasks"],
+)
+async def create_scheduled_task(
+    request: CreateScheduledTaskRequest,
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    创建定时任务
+
+    - **schedule_type**: 调度类型 (once/interval/cron)
+    - **run_at**: 一次性执行时间 (ISO 格式，如 "2026-03-10T10:00:00")
+    - **interval_seconds**: 间隔秒数（如 3600 表示每小时）
+    - **cron_expression**: Cron 表达式（如 "*/5 * * * *" 表示每 5 分钟）
+    """
+    from core.task_scheduler import get_scheduler
+
+    scheduler = get_scheduler()
+
+    # 根据调度类型创建任务
+    if request.schedule_type == ScheduleType.ONCE:
+        if not request.run_at:
+            raise HTTPException(status_code=400, detail="ONCE 类型需要 run_at 参数")
+        run_at = datetime.fromisoformat(request.run_at)
+        task_id = scheduler.create_once_task(
+            name=request.name,
+            agent_name=request.agent_name,
+            input=request.input,
+            run_at=run_at,
+            config=request.config,
+            description=request.description,
+            created_by=api_key,
+        )
+    elif request.schedule_type == ScheduleType.INTERVAL:
+        if not request.interval_seconds:
+            raise HTTPException(status_code=400, detail="INTERVAL 类型需要 interval_seconds 参数")
+        task_id = scheduler.create_interval_task(
+            name=request.name,
+            agent_name=request.agent_name,
+            input=request.input,
+            interval_seconds=request.interval_seconds,
+            config=request.config,
+            description=request.description,
+            created_by=api_key,
+        )
+    elif request.schedule_type == ScheduleType.CRON:
+        if not request.cron_expression:
+            raise HTTPException(status_code=400, detail="CRON 类型需要 cron_expression 参数")
+        task_id = scheduler.create_cron_task(
+            name=request.name,
+            agent_name=request.agent_name,
+            input=request.input,
+            cron_expression=request.cron_expression,
+            config=request.config,
+            description=request.description,
+            created_by=api_key,
+        )
+    else:
+        raise HTTPException(status_code=400, detail=f"未知的调度类型：{request.schedule_type}")
+
+    return {"task_id": task_id, "message": "定时任务已创建"}
+
+
+@router.get(
+    "/schedule",
+    response_model=ScheduledTaskListResponse,
+    tags=["Scheduled Tasks"],
+)
+async def list_scheduled_tasks(
+    enabled_only: bool = Query(default=False, description="是否只显示启用的任务"),
+    api_key: str = Depends(verify_api_key)
+):
+    """列出所有定时任务"""
+    from core.task_scheduler import get_scheduler
+
+    scheduler = get_scheduler()
+    tasks = scheduler.list_tasks(enabled_only=enabled_only)
+
+    task_list = [
+        ScheduledTaskInfo(
+            task_id=task.task_id,
+            name=task.name,
+            schedule_type=task.schedule_type,
+            agent_name=task.agent_name,
+            enabled=task.enabled,
+            last_run=task.last_run.isoformat() if task.last_run else None,
+            next_run=task.next_run.isoformat() if task.next_run else None,
+            total_runs=task.total_runs,
+            failed_runs=task.failed_runs,
+            cron_expression=task.cron_expression,
+            interval_seconds=task.interval_seconds,
+            created_at=task.created_at.isoformat(),
+        )
+        for task in tasks
+    ]
+
+    return ScheduledTaskListResponse(tasks=task_list, total=len(task_list))
+
+
+@router.get(
+    "/schedule/{task_id}",
+    tags=["Scheduled Tasks"],
+)
+async def get_scheduled_task(
+    task_id: str,
+    api_key: str = Depends(verify_api_key)
+):
+    """获取定时任务详情"""
+    from core.task_scheduler import get_scheduler
+
+    scheduler = get_scheduler()
+    task = scheduler.get_task(task_id)
+
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+
+    return {
+        "task_id": task.task_id,
+        "name": task.name,
+        "schedule_type": task.schedule_type.value,
+        "agent_name": task.agent_name,
+        "input": task.input,
+        "enabled": task.enabled,
+        "last_run": task.last_run.isoformat() if task.last_run else None,
+        "next_run": task.next_run.isoformat() if task.next_run else None,
+        "total_runs": task.total_runs,
+        "failed_runs": task.failed_runs,
+        "cron_expression": task.cron_expression,
+        "interval_seconds": task.interval_seconds,
+        "created_at": task.created_at.isoformat(),
+        "description": task.description,
+    }
+
+
+@router.post(
+    "/schedule/{task_id}/enable",
+    tags=["Scheduled Tasks"],
+)
+async def enable_scheduled_task(
+    task_id: str,
+    api_key: str = Depends(verify_api_key)
+):
+    """启用定时任务"""
+    from core.task_scheduler import get_scheduler
+
+    scheduler = get_scheduler()
+    if not scheduler.enable_task(task_id):
+        raise HTTPException(status_code=404, detail="任务不存在")
+    return {"message": "任务已启用"}
+
+
+@router.post(
+    "/schedule/{task_id}/disable",
+    tags=["Scheduled Tasks"],
+)
+async def disable_scheduled_task(
+    task_id: str,
+    api_key: str = Depends(verify_api_key)
+):
+    """禁用定时任务"""
+    from core.task_scheduler import get_scheduler
+
+    scheduler = get_scheduler()
+    if not scheduler.disable_task(task_id):
+        raise HTTPException(status_code=404, detail="任务不存在")
+    return {"message": "任务已禁用"}
+
+
+@router.delete(
+    "/schedule/{task_id}",
+    tags=["Scheduled Tasks"],
+)
+async def delete_scheduled_task(
+    task_id: str,
+    api_key: str = Depends(verify_api_key)
+):
+    """删除定时任务"""
+    from core.task_scheduler import get_scheduler
+
+    scheduler = get_scheduler()
+    if not scheduler.delete_task(task_id):
+        raise HTTPException(status_code=404, detail="任务不存在")
+    return {"message": "任务已删除"}
+
+
+# ============================================================================
+# 定时任务执行回调
+# ============================================================================
+
+def _execute_scheduled_task(scheduled_task):
+    """执行定时任务（回调函数）"""
+    from core.task_scheduler import get_scheduler
+
+    # 创建一个普通任务来执行
+    task_id = str(uuid.uuid4())
+
+    _tasks[task_id] = {
+        "task_id": task_id,
+        "type": "agent",
+        "agent_name": scheduled_task.agent_name,
+        "input": scheduled_task.input,
+        "config": scheduled_task.config,
+        "status": TaskStatus.PENDING,
+        "output": None,
+        "files": [],
+        "error": None,
+        "created_at": datetime.now(),
+        "started_at": None,
+        "completed_at": None,
+        "scheduled_task_id": scheduled_task.task_id,  # 关联定时任务 ID
+    }
+
+    # 执行任务
+    _execute_agent_task(task_id)
+
+    print(f"[定时任务] {scheduled_task.name} 执行完成，状态：{_tasks[task_id]['status']}")
 
 
 # ============================================================================

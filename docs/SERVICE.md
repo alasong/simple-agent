@@ -362,6 +362,47 @@ GET /api/v1/agent/list?X-API-Key=sk-xxx
 GET /api/v1/usage/daily?days=7&X-API-Key=sk-xxx
 ```
 
+### 6.8 创建定时任务
+
+```http
+POST /api/v1/schedule
+Content-Type: application/json
+X-API-Key: sk-xxx
+
+{
+  "name": "每日报告",
+  "schedule_type": "cron",
+  "agent_name": "developer",
+  "input": "生成项目报告",
+  "cron_expression": "0 9 * * *",
+  "description": "每天早上 9 点生成报告"
+}
+```
+
+### 6.9 列出定时任务
+
+```http
+GET /api/v1/schedule?X-API-Key=sk-xxx
+```
+
+### 6.10 定时任务调度类型
+
+| 类型 | 说明 | 参数 |
+|------|------|------|
+| `once` | 一次性执行 | `run_at`: ISO 时间格式 |
+| `interval` | 周期性执行 | `interval_seconds`: 间隔秒数 |
+| `cron` | Cron 表达式 | `cron_expression`: 5 位 cron |
+
+### 6.11 Cron 表达式示例
+
+| 表达式 | 说明 |
+|--------|------|
+| `*/5 * * * *` | 每 5 分钟 |
+| `0 * * * *` | 每小时整点 |
+| `0 9 * * *` | 每天 9:00 |
+| `0 9 * * 1` | 每周一 9:00 |
+| `0 9 1 * *` | 每月 1 号 9:00 |
+
 ---
 
 ## 7. 常见问题
