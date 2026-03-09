@@ -27,6 +27,16 @@ def get_verbose() -> bool:
     return getattr(_execution_context, 'verbose', True)
 
 
+def set_output_dir(output_dir: Optional[str]):
+    """设置全局输出目录"""
+    _execution_context.output_dir = output_dir
+
+
+def get_output_dir() -> Optional[str]:
+    """获取全局输出目录"""
+    return getattr(_execution_context, 'output_dir', None)
+
+
 # ==================== 工具定义 ====================
 
 class InvokeAgentTool(BaseTool):
@@ -143,11 +153,14 @@ class CreateWorkflowTool(BaseTool):
             from core.agent_manager import get_agent
 
             verbose = get_verbose()
+            output_dir = get_output_dir()
 
             if verbose:
                 print(f"\n[CreateWorkflow] 创建工作流...")
                 print(f"[CreateWorkflow] 任务：{task_description}")
                 print(f"[CreateWorkflow] 并行模式：{parallel}")
+                if output_dir:
+                    print(f"[CreateWorkflow] 输出目录：{output_dir}")
 
             if steps:
                 # 有指定步骤，判断是否启用并行
@@ -171,7 +184,7 @@ class CreateWorkflowTool(BaseTool):
                         print(f"\n[CreateWorkflow] 执行并行工作流，{len(workflow.tasks)} 个任务...")
 
                     import asyncio
-                    results = asyncio.run(workflow.execute(task_description, verbose=verbose))
+                    results = asyncio.run(workflow.execute(task_description, verbose=verbose, output_dir=output_dir))
 
                     # 合并结果
                     result_parts = []
@@ -199,7 +212,7 @@ class CreateWorkflowTool(BaseTool):
                     if verbose:
                         print(f"\n[CreateWorkflow] 执行顺序工作流，{len(workflow.steps)} 个步骤...")
 
-                    context = workflow.run(task_description, verbose=verbose)
+                    context = workflow.run(task_description, verbose=verbose, output_dir=output_dir)
                     result = context.get("_last_output", "工作流执行完成")
             else:
                 # 无指定步骤，使用默认顺序工作流
@@ -208,7 +221,7 @@ class CreateWorkflowTool(BaseTool):
                 if verbose:
                     print(f"\n[CreateWorkflow] 执行工作流，{len(workflow.steps)} 个步骤...")
 
-                context = workflow.run(task_description, verbose=verbose)
+                context = workflow.run(task_description, verbose=verbose, output_dir=output_dir)
                 result = context.get("_last_output", "工作流执行完成")
 
             if verbose:

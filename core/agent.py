@@ -125,7 +125,7 @@ class Agent:
 
     # ==================== 运行主循环 ====================
 
-    def run(self, user_input: str, verbose: bool = True, debug: bool = False) -> str:
+    def run(self, user_input: str, verbose: bool = True, debug: bool = False, output_dir: Optional[str] = None) -> str:
         """
         主循环 - 带智能错误恢复
 
@@ -133,6 +133,7 @@ class Agent:
             user_input: 用户输入
             verbose: 是否打印详细过程
             debug: 是否启用调试跟踪
+            output_dir: 输出目录（用于工具执行时保存文件）
 
         Returns:
             执行结果
@@ -149,8 +150,9 @@ class Agent:
 
         # 设置全局 verbose 状态
         try:
-            from tools.agent_tools import set_verbose
+            from tools.agent_tools import set_verbose, set_output_dir
             set_verbose(verbose)
+            set_output_dir(output_dir)
         except ImportError:
             pass
 
