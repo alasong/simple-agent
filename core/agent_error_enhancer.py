@@ -36,11 +36,11 @@ class AgentErrorEnhancer:
         if tool_name == "WebSearchTool":
             enhanced += AgentErrorEnhancer._enhance_web_search_error(arguments, error)
         
-        # 针对 GetCurrentDateTool
-        elif tool_name == "GetCurrentDateTool":
+        # 针对 GetCurrentDateTool (已废弃，保留兼容)
+        elif tool_name in ["GetCurrentDateTool", "DateTimeTool"]:
             enhanced += "💡 应对建议：\n"
-            enhanced += "1. 如果日期工具失败，可以直接使用系统日期或用户提供的时间\n"
-            enhanced += "2. 对于日期相关的查询，可以基于相对时间（如'今天'、'明天'）来回答\n"
+            enhanced += "1. 使用 BashTool 执行 `date` 命令获取当前日期\n"
+            enhanced += "2. 例如：`agent.run('date')`\n"
         
         # 通用工具失败处理
         else:
@@ -61,7 +61,7 @@ class AgentErrorEnhancer:
         
         if "timeout" in error.lower() or "超时" in error or "timed out" in error.lower():
             enhanced += "1. **网络超时** → 立即采取以下替代方案（不要重试）：\n"
-            enhanced += "   - **先获取日期**：使用 GetCurrentDateTool 确定今天的日期\n"
+            enhanced += "   - **先获取日期**：使用 BashTool 执行 `date` 命令\n"
             enhanced += "   - 换一个搜索词或更具体的网站\n"
             enhanced += "   - 使用 fetch_content=false 先获取搜索结果列表\n"
             enhanced += "   - 换一个信息源（如直接访问目标网站）\n"

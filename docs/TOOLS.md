@@ -28,10 +28,6 @@
 |------|------|
 | `WebSearchTool` | 网络搜索 |
 | `HttpTool` | HTTP 请求 |
-| `EnvTool` | 环境变量 |
-| `GetCurrentDateTool` | 当前时间 |
-| `CalculatorTool` | 数学计算 |
-| `CheckPythonSyntaxTool` | Python 语法检查 |
 
 ### Agent 协作工具
 
@@ -40,6 +36,13 @@
 | `InvokeAgentTool` | 调用其他 Agent |
 | `CreateWorkflowTool` | 创建工作流 |
 | `ListAgentsTool` | 列出可用 Agent |
+
+### 补充工具（LLM 驱动）
+
+| 工具 | 功能 |
+|------|------|
+| `SupplementTool` | 对已有结果补充说明 |
+| `ExplainReasonTool` | 解释原因 |
 
 ---
 

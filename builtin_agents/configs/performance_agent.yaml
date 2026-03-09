@@ -34,7 +34,6 @@ system_prompt: |
 tools:
   - ReadFileTool
   - WriteFileTool
-  - CheckFileExistsTool
   - BashTool
 max_iterations: 15
 domains:

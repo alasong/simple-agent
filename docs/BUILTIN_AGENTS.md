@@ -8,10 +8,10 @@ Simple Agent 系统内置了 25 个专业 Agent，覆盖软件开发、数据分
 
 | Agent | 配置 | 工具 | 领域 |
 |-------|------|------|------|
-| **开发工程师** | `developer.yaml` | ReadFileTool, WriteFileTool, RunCommandTool, CheckPythonSyntaxTool | software_engineering, programming |
+| **开发工程师** | `developer.yaml` | ReadFileTool, WriteFileTool, BashTool | software_engineering, programming |
 | **架构师** | `architect.yaml` | ReadFileTool, WriteFileTool, WebSearchTool | software_engineering, system_design |
-| **测试工程师** | `tester.yaml` | ReadFileTool, WriteFileTool, CheckFileExistsTool, RunCommandTool, CheckPythonSyntaxTool | software_engineering, quality_assurance |
-| **部署工程师** | `deployer.yaml` | ReadFileTool, WriteFileTool, RunCommandTool | software_engineering, devops |
+| **测试工程师** | `tester.yaml` | ReadFileTool, WriteFileTool, BashTool | software_engineering, quality_assurance |
+| **部署工程师** | `deployer.yaml` | ReadFileTool, WriteFileTool, BashTool | software_engineering, devops |
 | **代码审查员** | `reviewer.yaml` | ReadFileTool, WriteFileTool | software_engineering, code_review |
 
 ### 产品与设计 (2 个)
@@ -26,19 +26,19 @@ Simple Agent 系统内置了 25 个专业 Agent，覆盖软件开发、数据分
 | Agent | 配置 | 工具 | 领域 |
 |-------|------|------|------|
 | **AI 研究员** | `ai_researcher.yaml` | ReadFileTool, WriteFileTool, WebSearchTool | artificial_intelligence, research |
-| **机器学习工程师** | `ml_engineer.yaml` | ReadFileTool, WriteFileTool, RunCommandTool | machine_learning, deep_learning |
-| **MLOps 工程师** | `mlops_engineer.yaml` | ReadFileTool, WriteFileTool, RunCommandTool | machine_learning, devops |
-| **计算机视觉工程师** | `cv_engineer.yaml` | ReadFileTool, WriteFileTool, RunCommandTool | computer_vision, deep_learning |
-| **自然语言处理工程师** | `nlp_engineer.yaml` | ReadFileTool, WriteFileTool, RunCommandTool | natural_language_processing, deep_learning |
+| **机器学习工程师** | `ml_engineer.yaml` | ReadFileTool, WriteFileTool, BashTool | machine_learning, deep_learning |
+| **MLOps 工程师** | `mlops_engineer.yaml` | ReadFileTool, WriteFileTool, BashTool | machine_learning, devops |
+| **计算机视觉工程师** | `cv_engineer.yaml` | ReadFileTool, WriteFileTool, BashTool | computer_vision, deep_learning |
+| **自然语言处理工程师** | `nlp_engineer.yaml` | ReadFileTool, WriteFileTool, BashTool | natural_language_processing, deep_learning |
 | **提示词工程师** | `prompt_engineer.yaml` | ReadFileTool, WriteFileTool | prompt_engineering, llm |
 
 ### 数据与量化 (6 个)
 
 | Agent | 配置 | 工具 | 领域 |
 |-------|------|------|------|
-| **数据分析师** | `data_analyst.yaml` | ReadFileTool, WriteFileTool, RunCommandTool | data_science, analytics |
-| **数据工程师** | `data_engineer.yaml` | ReadFileTool, WriteFileTool, RunCommandTool, CheckFileExistsTool | data_engineering, big_data |
-| **量化分析师** | `quant_analyst.yaml` | ReadFileTool, WriteFileTool, RunCommandTool | quantitative_finance, algorithmic_trading |
+| **数据分析师** | `data_analyst.yaml` | ReadFileTool, WriteFileTool, BashTool | data_science, analytics |
+| **数据工程师** | `data_engineer.yaml` | ReadFileTool, WriteFileTool, BashTool | data_engineering, big_data |
+| **量化分析师** | `quant_analyst.yaml` | ReadFileTool, WriteFileTool, BashTool | quantitative_finance, algorithmic_trading |
 | **金融分析师** | `financial_analyst.yaml` | ReadFileTool, WriteFileTool, WebSearchTool | finance, investment_analysis |
 | **信用分析师** | `credit_analyst.yaml` | ReadFileTool, WriteFileTool | credit_risk, financial_analysis |
 | **投资顾问** | `investment_advisor.yaml` | ReadFileTool, WriteFileTool, WebSearchTool | investment, wealth_management |
@@ -47,25 +47,23 @@ Simple Agent 系统内置了 25 个专业 Agent，覆盖软件开发、数据分
 
 | Agent | 配置 | 工具 | 领域 |
 |-------|------|------|------|
-| **交易策略师** | `trading_strategist.yaml` | ReadFileTool, WriteFileTool, RunCommandTool | algorithmic_trading, quantitative_finance |
+| **交易策略师** | `trading_strategist.yaml` | ReadFileTool, WriteFileTool, BashTool | algorithmic_trading, quantitative_finance |
 | **风险管理师** | `risk_manager.yaml` | ReadFileTool, WriteFileTool | risk_management, financial_analysis |
 | **合规官** | `compliance_officer.yaml` | ReadFileTool, WriteFileTool, WebSearchTool | regulatory_compliance, risk_management |
-| **任务规划师** | `planner.yaml` | ReadFileTool, WriteFileTool | task_planning, project_management |
+| **任务规划师** | `planner.yaml` | InvokeAgentTool, CreateWorkflowTool, ListAgentsTool, WebSearchTool, BashTool | task_planning, project_management |
 
 ### 新增专家 (4 个) ✨
 
 | Agent | 配置 | 工具 | 领域 |
 |-------|------|------|------|
-| **安全专家** | `security_agent.yaml` | ReadFileTool, WriteFileTool, CheckFileExistsTool, CheckContentTool | security_engineering, vulnerability_analysis |
-| **性能优化专家** | `performance_agent.yaml` | ReadFileTool, WriteFileTool, CheckFileExistsTool, RunCommandTool | performance_optimization, system_tuning |
-| **数据工程师** | `data_engineer.yaml` | ReadFileTool, WriteFileTool, RunCommandTool, CheckFileExistsTool | data_engineering, big_data |
-| **产品经理** | `product_manager.yaml` | ReadFileTool, WriteFileTool, WebSearchTool | product_management, requirement_analysis |
+| **安全专家** | `security_agent.yaml` | ReadFileTool, WriteFileTool, BashTool | security_engineering, vulnerability_analysis |
+| **性能优化专家** | `performance_agent.yaml` | ReadFileTool, WriteFileTool, BashTool | performance_optimization, system_tuning |
 
 ### CLI 专用 (1 个)
 
 | Agent | 配置 | 工具 | 领域 |
 |-------|------|------|------|
-| **CLI Agent** | `cli.yaml` | ReadFileTool, WriteFileTool, RunCommandTool | cli, automation |
+| **CLI Agent** | `cli.yaml` | ReadFileTool, WriteFileTool, BashTool | cli, automation |
 
 ## 工具说明
 
@@ -73,11 +71,16 @@ Simple Agent 系统内置了 25 个专业 Agent，覆盖软件开发、数据分
 |------|------|
 | `ReadFileTool` | 读取文件内容 |
 | `WriteFileTool` | 写入/创建文件 |
-| `CheckFileExistsTool` | 检查文件是否存在 |
-| `RunCommandTool` | 执行 shell 命令 |
-| `CheckPythonSyntaxTool` | 检查 Python 语法 |
+| `BashTool` | 执行 shell 命令（环境安装、文件操作、运行程序） |
 | `WebSearchTool` | 网络搜索 |
-| `CheckContentTool` | 检查内容合规性 |
+| `InvokeAgentTool` | 调用其他 Agent |
+| `CreateWorkflowTool` | 创建工作流 |
+| `ListAgentsTool` | 列出可用 Agent |
+
+**设计理念**：
+- 最小化工具集：只做 bash 做不到的事
+- 环境优先：优先使用系统已有命令
+- BashTool 可替代旧文档中的 `RunCommandTool`、`CheckPythonSyntaxTool`、`CheckFileExistsTool` 等
 
 ## Agent 配置格式
 

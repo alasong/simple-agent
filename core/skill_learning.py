@@ -55,7 +55,7 @@ class SkillLibrary:
 2. 潜在问题和 bug
 3. 性能和效率
 4. 改进建议""",
-            tools=["ReadFileTool", "CheckPythonSyntaxTool"],
+            tools=["ReadFileTool", "WriteFileTool", "BashTool"],
             success_rate=0.8
         )
         self.skills["测试生成"] = Skill(

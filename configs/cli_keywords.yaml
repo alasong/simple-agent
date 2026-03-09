@@ -44,7 +44,7 @@ realtime_keywords:
 
 # 提示词模板
 templates:
-  date_query: "（请使用 GetCurrentDateTool 获取当前日期）"
+  date_query: "（请使用 `date` 命令获取当前日期）"
   
   weather: "（**重要：当前准确日期是{date_str}。请务必使用 WebSearchTool 搜索最新天气信息，设置 fetch_content=true，严禁编造数据！**）"
   

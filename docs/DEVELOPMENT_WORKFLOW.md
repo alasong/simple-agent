@@ -412,20 +412,14 @@ result = await orchestrator.solve("开发用户管理系统")
 # 生成的文件保存到 output/swarm/ 或 output/generated/
 ```
 
-#### 使用 OutputManagerTool
+#### 使用 BashTool 保存输出
 
 ```python
-from tools.output_manager import OutputManagerTool
+from tools.bash_tool import BashTool
 
-manager = OutputManagerTool()
-
-result = manager.execute(
-    project="calculator",
-    filename="result",
-    content="计算结果：42",
-    file_type="txt"
-)
-# 保存到：output/YYYY-MM-DD/calculator/result.txt
+bash = BashTool()
+# 创建目录并复制文件
+bash.execute(command="mkdir -p output/YYYY-MM-DD/project && cp result.txt output/YYYY-MM-DD/project/")
 ```
 
 ### 3.5 Git 忽略

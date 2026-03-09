@@ -34,7 +34,6 @@ tools:
   - ReadFileTool
   - WriteFileTool
   - BashTool
-  - CheckFileExistsTool
 max_iterations: 15
 domains:
   - data_engineering

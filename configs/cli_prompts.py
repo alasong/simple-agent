@@ -32,7 +32,7 @@ class PromptTemplates:
         "新闻", "头条", "最新", "股价", "比分", "排名", "热搜", "疫情"
     ]
     
-    _default_date_query_prompt = "（请使用 GetCurrentDateTool 获取当前日期）"
+    _default_date_query_prompt = "（请使用 `date` 命令获取当前日期）"
     
     _default_weather_prompt_template = (
         "（**重要：当前准确日期是{date_str}。"

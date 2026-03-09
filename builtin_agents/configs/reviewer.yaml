@@ -29,9 +29,6 @@ system_prompt: |
   以严格但建设性的态度，帮助提升代码质量。
 tools:
   - ReadFileTool
-  - CheckFileExistsTool
-  - CheckContentTool
-  - CheckPythonSyntaxTool
 max_iterations: 15
 domains:
   - software_engineering

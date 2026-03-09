@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.workflow import Workflow, WorkflowStep
 from core.agent import Agent
 from core.llm import OpenAILLM
-from tools.get_date_tool import GetCurrentDateTool
+from tools.bash_tool import BashTool
 
 
 class TestWorkflowExecution:
@@ -32,9 +32,9 @@ class TestWorkflowExecution:
         # 添加步骤 1：获取日期
         date_agent = Agent(
             llm=OpenAILLM(),
-            tools=[GetCurrentDateTool()],
+            tools=[BashTool()],
             name="DateAgent",
-            system_prompt="你负责获取当前日期"
+            system_prompt="你负责获取当前日期，使用 `date` 命令"
         )
         workflow.add_step(
             name="get_date",
@@ -69,9 +69,9 @@ class TestWorkflowExecution:
         
         agent = Agent(
             llm=OpenAILLM(),
-            tools=[GetCurrentDateTool()],
+            tools=[BashTool()],
             name="SimpleAgent",
-            system_prompt="你是一个简单的助手"
+            system_prompt="你是一个简单的助手，使用 bash 命令回答问题"
         )
         
         workflow.add_step(
@@ -307,7 +307,7 @@ class TestWorkflowErrors:
         # 创建会无限循环的 agent
         agent = Agent(
             llm=OpenAILLM(),
-            tools=[GetCurrentDateTool()],
+            tools=[BashTool()],
             max_iterations=2,  # 限制迭代次数
             system_prompt="一直调用工具直到达到限制"
         )

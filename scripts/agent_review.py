@@ -95,7 +95,7 @@ class CodeReviewAgent:
 - 质量：X/10
 - 可维护性：X/10
 - 总体：X/10""",
-            tools=["ReadFileTool", "CheckPythonSyntaxTool"],
+            tools=["ReadFileTool", "WriteFileTool", "BashTool"],
             success_rate=0.9
         )
         

@@ -9,46 +9,33 @@
 - 不破坏用户习惯：通过 BashTool 调用用户熟悉的工具
 """
 
-# 导入即注册
+# 核心工具 (80% 场景)
 from .file import ReadFileTool, WriteFileTool
-from .check import CheckFileExistsTool, CheckContentTool, CheckPythonSyntaxTool
-from .agent_tools import InvokeAgentTool, CreateWorkflowTool, ListAgentsTool
-from .web_search_tool import WebSearchTool
-from .datetime_tool import DateTimeTool, GetCurrentDateTool
-from .supplement import SupplementTool, ExplainReasonTool
-from .output_manager import OutputManagerTool
-
-# 系统工具
 from .bash_tool import BashTool
-from .env_tool import EnvTool
+
+# Agent 协作工具
+from .agent_tools import InvokeAgentTool, CreateWorkflowTool, ListAgentsTool
+
+# 网络工具 (bash 难以处理的)
+from .web_search_tool import WebSearchTool
 from .http_tool import HttpTool
-from .math_tool import CalculatorTool
+
+# 补充工具 (LLM 驱动的解释/补充)
+from .supplement import SupplementTool, ExplainReasonTool
 
 __all__ = [
-    # 文件工具
+    # 核心工具
+    "BashTool",
     "ReadFileTool",
     "WriteFileTool",
-    # 检查工具
-    "CheckFileExistsTool",
-    "CheckContentTool",
-    "CheckPythonSyntaxTool",
     # Agent 工具
     "InvokeAgentTool",
     "CreateWorkflowTool",
     "ListAgentsTool",
     # 网络工具
     "WebSearchTool",
-    # 时间工具
-    "DateTimeTool",
-    "GetCurrentDateTool",
-    # 分析工具
+    "HttpTool",
+    # 补充工具
     "SupplementTool",
     "ExplainReasonTool",
-    # 输出工具
-    "OutputManagerTool",
-    # 系统工具
-    "BashTool",
-    "EnvTool",
-    "HttpTool",
-    "CalculatorTool",
 ]

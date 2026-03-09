@@ -29,8 +29,6 @@ system_prompt: |
 tools:
   - ReadFileTool
   - WriteFileTool
-  - CheckFileExistsTool
-  - CheckContentTool
 max_iterations: 15
 domains:
   - software_engineering

@@ -36,12 +36,12 @@ def test_json_format():
     """测试 JSON 格式解析"""
     parser = ToolCallParser()
     
-    content = '让我调用工具 {"name":"GetCurrentDateTool","arguments":{}}'
+    content = '让我调用工具 {"name":"BashTool","arguments":{"command":"date"}}'
     result = parser.parse(content)
-    
+
     assert len(result) == 1, f"应该解析出 1 个工具调用，实际 {len(result)}"
-    assert result[0]["name"] == "GetCurrentDateTool", f"工具名错误：{result[0]['name']}"
-    assert result[0]["arguments"] == {}, f"参数应该为空字典：{result[0]['arguments']}"
+    assert result[0]["name"] == "BashTool", f"工具名错误：{result[0]['name']}"
+    assert result[0]["arguments"]["command"] == "date", f"参数错误：{result[0]['arguments']}"
     print("✓ JSON 格式测试通过")
 
 
