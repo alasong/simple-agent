@@ -7,12 +7,25 @@ BashTool - Shell 命令执行工具
 - 按人的思路执行：该确认的就确认
 - 不是 AI 自动执行，而是辅助人执行
 - 安全优先：危险命令需要明确确认
+- 深度防护：集成多层安全审计机制
 """
 
 import subprocess
 import shlex
 from typing import Optional
 from core.tool import BaseTool, ToolResult
+
+# 集成深度安全防护模块
+try:
+    from core.script_security import (
+        SecurityAuditor,
+        SecurityLevel,
+        PermissionLevel,
+        quick_audit,
+    )
+    DEEP_SECURITY_ENABLED = True
+except ImportError:
+    DEEP_SECURITY_ENABLED = False
 
 
 # 危险命令黑名单（绝对禁止）
@@ -58,6 +71,16 @@ def is_dangerous(command: str) -> tuple[bool, str]:
         - True + 原因：需要用户确认
         - False + "": 安全命令，可直接执行
     """
+    # 首先使用深度安全审计（如果启用）
+    if DEEP_SECURITY_ENABLED:
+        audit_result = quick_audit(command)
+        if not audit_result.allowed:
+            # 根据安全级别返回
+            if audit_result.security_level == SecurityLevel.BLOCKED:
+                return False, f"禁止执行危险命令：{audit_result.risk_reasons[0] if audit_result.risk_reasons else '安全策略阻止'}"
+            elif audit_result.security_level in [SecurityLevel.MEDIUM_RISK, SecurityLevel.HIGH_RISK]:
+                return True, f"需要确认：{audit_result.risk_reasons[0] if audit_result.risk_reasons else '危险操作'}"
+
     cmd_lower = command.lower().strip()
 
     # 检查黑名单（绝对禁止）

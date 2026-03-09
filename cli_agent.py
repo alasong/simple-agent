@@ -18,9 +18,6 @@ import time
 from datetime import datetime
 from typing import Optional, Any
 
-# 先导入工具模块，确保工具注册到资源仓库
-import tools  # noqa: F401
-
 from core.llm import OpenAILLM
 from core.config_loader import get_config
 from core.task_queue import TaskQueue
@@ -28,6 +25,10 @@ from core.task_handle import TaskHandle
 
 # 导入提示词配置，避免硬编码
 from configs.cli_prompts import PromptTemplates, WeekdayConfig
+
+# 注意：不再需要 import tools 副作用导入
+# 常用工具（BashTool, ReadFileTool, WriteFileTool）已默认导出
+# 其他工具通过 ToolRegistry 按需加载
 
 
 class CLIAgent:

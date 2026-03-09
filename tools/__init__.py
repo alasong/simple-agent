@@ -1,5 +1,5 @@
 """
-内置工具插件
+内置工具插件 - 插件型按需加载
 
 导入即注册到资源仓库
 
@@ -7,35 +7,31 @@
 - 最小化原则：只做 bash 做不到的事
 - 环境优先：优先使用系统已有命令
 - 不破坏用户习惯：通过 BashTool 调用用户熟悉的工具
+- 按需加载：只导入常用工具，其他工具使用时自动发现
+
+常用工具（默认导入）:
+- BashTool: 执行 shell 命令
+- ReadFileTool: 读取文件
+- WriteFileTool: 写入文件
+
+其他工具（按需加载）:
+- Agent 工具：InvokeAgentTool, CreateWorkflowTool, ListAgentsTool
+- 网络工具：WebSearchTool, HttpTool
+- 补充工具：SupplementTool, ExplainReasonTool
 """
 
-# 核心工具 (80% 场景)
+# 核心工具 (80% 场景) - 默认导入
 from .file import ReadFileTool, WriteFileTool
 from .bash_tool import BashTool
 
-# Agent 协作工具
-from .agent_tools import InvokeAgentTool, CreateWorkflowTool, ListAgentsTool
-
-# 网络工具 (bash 难以处理的)
-from .web_search_tool import WebSearchTool
-from .http_tool import HttpTool
-
-# 补充工具 (LLM 驱动的解释/补充)
-from .supplement import SupplementTool, ExplainReasonTool
-
 __all__ = [
-    # 核心工具
+    # 核心工具 - 默认导入
     "BashTool",
     "ReadFileTool",
     "WriteFileTool",
-    # Agent 工具
-    "InvokeAgentTool",
-    "CreateWorkflowTool",
-    "ListAgentsTool",
-    # 网络工具
-    "WebSearchTool",
-    "HttpTool",
-    # 补充工具
-    "SupplementTool",
-    "ExplainReasonTool",
 ]
+
+# 注意：其他工具不再显式导出，改为通过 ToolRegistry 按需加载
+# 使用方式：
+#   from core.tool_registry import get_tool
+#   tool = get_tool("WebSearchTool")

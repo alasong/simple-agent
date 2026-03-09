@@ -7,10 +7,13 @@
 - Agent 注册表
 
 Agent 创建时从仓库抽取所需资源
+
+v2 增强：集成 ToolRegistry，支持插件型按需加载
 """
 
 from typing import Optional, Dict, List, Any, TYPE_CHECKING
 from dataclasses import dataclass, field
+import logging
 
 from .tool import BaseTool
 from .llm import LLM, OpenAILLM, LLMInterface
@@ -18,6 +21,8 @@ from .llm import LLM, OpenAILLM, LLMInterface
 # 避免循环依赖：使用 TYPE_CHECKING 进行类型注解
 if TYPE_CHECKING:
     from .agent import Agent
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -63,7 +68,21 @@ class ResourceRepository:
         
         # Agent 注册表
         self._agents: Dict[str, 'Agent'] = {}
-    
+
+        # ToolRegistry 集成（用于按需加载）
+        self._tool_registry = None
+
+    def _get_tool_registry(self):
+        """懒加载 ToolRegistry"""
+        if self._tool_registry is None:
+            try:
+                from core.tool_registry import get_registry
+                self._tool_registry = get_registry()
+            except ImportError as e:
+                logger.warning(f"无法导入 ToolRegistry: {e}")
+                self._tool_registry = None
+        return self._tool_registry
+
     # ==================== 工具管理 ====================
     
     def register_tool(
@@ -92,7 +111,35 @@ class ResourceRepository:
     def get_tool(self, name: str) -> Optional[type[BaseTool]]:
         """获取工具类"""
         entry = self._tools.get(name)
-        return entry.tool if entry else None
+        if entry:
+            return entry.tool
+
+        # 尝试从 ToolRegistry 获取
+        registry = self._get_tool_registry()
+        if registry:
+            try:
+                return registry.get_tool(name).__class__
+            except (KeyError, RuntimeError):
+                pass
+
+        return None
+
+    def get_tool_instance(self, name: str) -> Optional[BaseTool]:
+        """获取工具实例（支持按需加载）"""
+        # 先从传统仓库获取
+        entry = self._tools.get(name)
+        if entry:
+            return entry.tool()
+
+        # 从 ToolRegistry 按需加载
+        registry = self._get_tool_registry()
+        if registry:
+            try:
+                return registry.get_tool(name)
+            except KeyError:
+                pass
+
+        return None
     
     def get_tools_by_tags(self, tags: List[str]) -> List[type[BaseTool]]:
         """按标签获取工具"""
@@ -203,6 +250,95 @@ class ResourceRepository:
                 tool_classes.add(tc)
         
         return [tc() for tc in tool_classes]
+
+    def extract_tools_v2(self, requirements: Dict[str, Any]) -> List[BaseTool]:
+        """
+        v2: 根据需求抽取工具（支持 ToolRegistry 按需加载）
+
+        Args:
+            requirements: {
+                "tools": ["ToolName"],      # 明确指定工具
+                "tags": ["file", "check"],  # 按标签选择
+                "keywords": ["文件", "检查"] # 从描述关键词推断
+            }
+        """
+        tool_instances = []
+        tool_names = set()
+
+        # 1. 明确指定的工具
+        for name in requirements.get("tools", []):
+            tool_names.add(name)
+
+        # 2. 按标签选择
+        for tag in requirements.get("tags", []):
+            # 从传统仓库获取
+            names = self._tool_tags.get(tag, [])
+            tool_names.update(names)
+
+            # 从 ToolRegistry 获取
+            registry = self._get_tool_registry()
+            if registry:
+                try:
+                    registry.discover_tools()  # 确保已扫描
+                    for tool_name, tool_class in registry._tool_classes.items():
+                        # 检查标签
+                        tool_tags = getattr(tool_class, 'tags', [])
+                        if tag in tool_tags:
+                            tool_names.add(tool_name)
+                except Exception:
+                    pass
+
+        # 3. 关键词推断（智能匹配）
+        keywords = requirements.get("keywords", [])
+        if keywords:
+            keyword_text = " ".join(keywords).lower()
+
+            # 关键词到标签的映射
+            keyword_tag_map = {
+                "文件": "file",
+                "file": "file",
+                "读写": "file",
+                "写入": "file",
+                "读取": "file",
+                "io": "io",
+                "检查": "check",
+                "check": "check",
+                "验证": "check",
+                "审查": "review",
+                "review": "review",
+                "代码": "code",
+                "code": "code",
+                "python": "code",
+            }
+
+            # 从关键词推断标签
+            inferred_tags = set()
+            for kw, tag in keyword_tag_map.items():
+                if kw in keyword_text:
+                    inferred_tags.add(tag)
+
+            # 添加推断标签对应的工具
+            for tag in inferred_tags:
+                tool_names.update(self._tool_tags.get(tag, []))
+
+        # 实例化工具
+        for name in tool_names:
+            # 尝试从 ToolRegistry 获取实例（按需加载）
+            registry = self._get_tool_registry()
+            if registry:
+                try:
+                    tool = registry.get_tool(name)
+                    tool_instances.append(tool)
+                    continue
+                except KeyError:
+                    pass
+
+            # 从传统仓库获取
+            entry = self._tools.get(name)
+            if entry:
+                tool_instances.append(entry.tool())
+
+        return tool_instances
     
     def extract_llm(self, name: str = "default") -> LLMInterface:
         """抽取 LLM"""

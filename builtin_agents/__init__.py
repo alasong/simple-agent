@@ -4,10 +4,9 @@ Builtin Agents - 预定义的专业 Agent
 基于统一的 Agent 配置框架，从 YAML 配置文件加载
 
 可用 Agent 通过 list_available_agents() 获取，或查看 config/ 目录。
-"""
 
-# 先导入工具模块，确保工具注册到资源仓库
-import tools  # noqa: F401
+注意：工具改为按需加载，不再需要 import tools 副作用导入
+"""
 
 import os
 import yaml
@@ -75,9 +74,10 @@ def create_builtin_agent(agent_type: str, llm: Optional[OpenAILLM] = None) -> Ag
     
     tools = []
     for tool_name in config.get("tools", []):
-        tool_class = repo.get_tool(tool_name)
-        if tool_class:
-            tools.append(tool_class())
+        # 使用 get_tool_instance 支持按需加载
+        tool = repo.get_tool_instance(tool_name)
+        if tool:
+            tools.append(tool)
         else:
             print(f"[Warning] 未找到工具：{tool_name}")
     

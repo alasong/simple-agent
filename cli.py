@@ -27,12 +27,13 @@ import sys
 import argparse
 import os
 
-# 导入工具模块
-import tools  # noqa: F401
-
 # 导入协调器
 from cli_coordinator import CLICoordinator
 from cli_agent import CLIAgent
+
+# 注意：不再需要 import tools 副作用导入
+# 常用工具（BashTool, ReadFileTool, WriteFileTool）已默认导出
+# 其他工具通过 ToolRegistry 按需加载
 
 # 富文本输出支持
 try:
