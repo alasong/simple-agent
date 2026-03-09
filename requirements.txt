@@ -6,3 +6,20 @@ matplotlib>=3.4.0
 dataclasses; python_version<'3.7'
 rich>=13.0.0
 networkx>=2.5
+
+# API Server (Phase 1)
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+python-multipart>=0.0.6
+
+# WebSocket (Phase 2)
+websockets>=11.0
+
+# Async file I/O
+aiofiles>=23.0
+
+# Data validation (already included with fastapi)
+pydantic>=2.0
+
+# YAML config loading
+pyyaml>=5.4

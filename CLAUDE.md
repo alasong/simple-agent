@@ -31,13 +31,35 @@ Simple Agent 是一个多 Agent 协作系统，支持群体智能、任务自动
 
 ```bash
 # 运行 CLI（交互模式）
-./venv/bin/python cli_new.py
+./venv/bin/python cli.py
 
 # 运行 CLI（单次任务）
-./venv/bin/python cli_new.py "任务描述"
+./venv/bin/python cli.py "任务描述"
 
 # 运行示例
 ./venv/bin/python examples/demo_swarm.py
+
+# ===== 本地服务化模式 =====
+
+# 启动 API 服务（后台运行）
+./venv/bin/python cli.py --start
+
+# 查看守护进程状态
+./venv/bin/python cli.py --status
+
+# 查看日志
+./venv/bin/python cli.py --logs 100
+
+# 停止守护进程
+./venv/bin/python cli.py --stop
+
+# 直接启动 API 服务（前台）
+./venv/bin/python -m core.api_server --port 8000
+
+# 启动 Web UI
+./venv/bin/python -m webui.app --port 3000
+
+# 访问 http://localhost:8000/docs 查看 API 文档
 ```
 
 ## 架构概览
@@ -93,6 +115,23 @@ Simple Agent 是一个多 Agent 协作系统，支持群体智能、任务自动
 - `workflow_parallel.py` - 并行工作流执行（ParallelWorkflow, ParallelStep）
 - `task_decomposer.py` - 多级任务分解器
 - `dependency_graph.py` - 依赖图管理器
+
+### core/ - 本地服务化 (Phase 1-2)
+- `api_models.py` - Pydantic 数据模型
+- `api_auth.py` - API Key 认证（支持速率限制）
+- `usage_tracker.py` - 用量追踪（token/时长）
+- `api_routes.py` - API 路由定义
+- `api_server.py` - FastAPI 主服务
+- `session_store.py` - 会话持久化存储
+- `websocket_server.py` - WebSocket 实时推送
+- `daemon.py` - 守护进程管理（systemd/launchd）
+
+### webui/ - Web 界面 (Phase 3)
+- `app.py` - Web UI 服务
+- `frontend/index.html` - 前端页面（任务提交/列表/输出）
+
+### integrations/ - IM 集成 (Phase 4)
+- `feishu.py` - 飞书机器人集成
 
 ### tests/ - 测试 (122 个测试)
 - `test_deep_core.py` - 14 个核心深度集成测试 (推荐)
@@ -161,6 +200,16 @@ result = await swarm.solve("复杂任务")
 - `requests>=2.25.1` - HTTP 请求
 - 其他：pandas, numpy, matplotlib, yfinance
 
+### 本地服务化依赖 (Phase 1-4)
+
+- `fastapi>=0.100.0` - API 框架
+- `uvicorn[standard]>=0.23.0` - ASGI 服务器
+- `python-multipart>=0.0.6` - 文件上传支持
+- `websockets>=11.0` - WebSocket 支持
+- `aiofiles>=23.0` - 异步文件 I/O
+- `pydantic>=2.0` - 数据验证
+- `pyyaml>=5.4` - YAML 配置加载
+
 虚拟环境位于 `.venv/`，使用 `./venv/bin/python` 执行命令。
 
 ## 开发注意事项
@@ -177,5 +226,6 @@ result = await swarm.solve("复杂任务")
 - `docs/PROJECT_OVERVIEW.md` - 项目概述
 - `docs/BUILTIN_AGENTS.md` - 内置 Agent 详细列表 (25 个)
 - `docs/TESTING.md` - 测试指南
+- `docs/SERVICE.md` - 本地服务化文档 (新增)
 - `tests/README.md` - 测试运行说明
 - `REFACTOR_PROGRESS.md` - 重构进度和新增功能
