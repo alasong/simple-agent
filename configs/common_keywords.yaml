@@ -1,0 +1,117 @@
+# 通用关键词配置
+# 避免在代码中硬编码关键词列表
+
+# 复杂度判断关键词
+complexity:
+  keywords:
+    - "设计"
+    - "架构"
+    - "系统"
+    - "复杂"
+    - "多个"
+    - "完整"
+    - "从 0"
+    - "项目"
+    - "流程"
+    - "方案"
+    - "规划"
+    - "全面"
+    - "整个"
+
+# 审查通过关键词
+approval:
+  keywords:
+    - "lgtm"
+    - "通过"
+    - "approved"
+    - "looks good"
+    - "完美"
+    - "没问题"
+    - "同意"
+    - "确认"
+    - "ok"
+    - "good"
+    - " approve"
+    - "accept"
+
+# 技能关键词映射
+skills:
+  keywords:
+    coding:
+      - "code"
+      - "develop"
+      - "program"
+      - "write"
+      - "implement"
+      - "编码"
+      - "开发"
+      - "实现"
+      - "编写"
+      - "函数"
+      - "类"
+      - "模块"
+
+    testing:
+      - "test"
+      - "qa"
+      - "verify"
+      - "validate"
+      - "测试"
+      - "验证"
+      - "单元测试"
+      - "集成测试"
+      - "bug"
+      - "缺陷"
+
+    reviewing:
+      - "review"
+      - "audit"
+      - "check"
+      - "inspect"
+      - "审查"
+      - "审核"
+      - "检查"
+      - "代码审查"
+      - "评审"
+
+    analysis:
+      - "analyz"
+      - "research"
+      - "investigat"
+      - "分析"
+      - "研究"
+      - "调查"
+      - "调研"
+      - "数据"
+      - "统计"
+
+    planning:
+      - "plan"
+      - "design"
+      - "architect"
+      - "计划"
+      - "设计"
+      - "架构"
+      - "规划"
+      - "方案"
+
+    writing:
+      - "write"
+      - "document"
+      - "explain"
+      - "文档"
+      - "说明"
+      - "写作"
+      - "描述"
+      - "介绍"
+
+    debugging:
+      - "debug"
+      - "fix"
+      - "troubleshoot"
+      - "调试"
+      - "修复"
+      - "解决"
+      - "bug"
+      - "错误"
+      - "问题"

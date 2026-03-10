@@ -29,6 +29,77 @@ from core.task_handle import TaskHandle
 from configs.cli_prompts import PromptTemplates, WeekdayConfig
 
 
+class ContextInjectorConfig:
+    """
+    上下文注入器配置 - 从配置文件加载关键词
+
+    避免在代码中硬编码关键词列表
+    """
+
+    # 默认关键词（当 YAML 配置不可用时）
+    _default_time_keywords = ["今天", "日期", "时间", "星期", "放假", "开学", "暑假", "寒假", "安排", "时刻", "几点"]
+    _default_location_keywords = ["天气", "位置", "地点", "哪里", "在哪", "北京", "上海", "广州", "深圳", "杭州"]
+    _default_season_keywords = ["季节", "气候", "温度", "冷热", "穿衣"]
+
+    _time_keywords: list = None
+    _location_keywords: list = None
+    _season_keywords: list = None
+
+    @classmethod
+    def _load_keywords(cls) -> None:
+        """从 YAML 加载关键词"""
+        if cls._time_keywords is not None:
+            return  # 已加载
+
+        try:
+            import yaml
+            config_path = os.path.join(
+                os.path.dirname(os.path.dirname(__file__)),
+                'configs',
+                'cli_keywords.yaml'
+            )
+
+            if os.path.exists(config_path):
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    config = yaml.safe_load(f) or {}
+
+                    # 合并默认值和配置值
+                    if 'date_keywords' in config:
+                        cls._time_keywords = list(set(cls._default_time_keywords + config['date_keywords']))
+                    if 'weather_keywords' in config:
+                        cls._location_keywords = list(set(cls._default_location_keywords + config['weather_keywords']))
+                    if 'realtime_keywords' in config:
+                        cls._season_keywords = list(set(cls._default_season_keywords + config['realtime_keywords']))
+        except Exception:
+            pass  # 使用默认值
+
+        # 确保有值
+        if cls._time_keywords is None:
+            cls._time_keywords = cls._default_time_keywords
+        if cls._location_keywords is None:
+            cls._location_keywords = cls._default_location_keywords
+        if cls._season_keywords is None:
+            cls._season_keywords = cls._default_season_keywords
+
+    @classmethod
+    def get_time_keywords(cls) -> list:
+        """获取时间相关关键词"""
+        cls._load_keywords()
+        return cls._time_keywords
+
+    @classmethod
+    def get_location_keywords(cls) -> list:
+        """获取地点相关关键词"""
+        cls._load_keywords()
+        return cls._location_keywords
+
+    @classmethod
+    def get_season_keywords(cls) -> list:
+        """获取季节相关关键词"""
+        cls._load_keywords()
+        return cls._season_keywords
+
+
 class ContextInjector:
     """
     上下文注入器 - 在任务执行前注入基本信息
@@ -96,8 +167,8 @@ class ContextInjector:
         # 检测用户输入类型，决定注入哪些上下文
         context_parts = []
 
-        # 时间相关查询：注入详细时间信息
-        time_keywords = ["今天", "日期", "时间", "星期", "放假", "开学", "暑假", "寒假", "安排"]
+        # 时间相关查询：注入详细时间信息（使用配置关键词）
+        time_keywords = ContextInjectorConfig.get_time_keywords()
         if any(kw in user_input for kw in time_keywords):
             context_parts.append(
                 f"[当前时间信息] {time_ctx['date']}，{time_ctx['weekday']}，{time_ctx['time']}，"
@@ -109,7 +180,7 @@ class ContextInjector:
                 context_parts.append("[当前状态] 正值寒假期间")
 
         # 地点相关查询：注入位置信息（如果有）
-        location_keywords = ["天气", "位置", "地点", "哪里", "在哪", "北京", "上海", "广州"]
+        location_keywords = ContextInjectorConfig.get_location_keywords()
         if any(kw in user_input for kw in location_keywords):
             # 可以尝试获取用户位置
             try:
@@ -117,6 +188,11 @@ class ContextInjector:
                 pass
             except Exception:
                 pass
+
+        # 季节/气候相关查询：注入季节信息
+        season_keywords = ContextInjectorConfig.get_season_keywords()
+        if any(kw in user_input for kw in season_keywords):
+            context_parts.append(f"[当前季节] {time_ctx['season']}，{time_ctx['semester']}")
 
         if context_parts:
             return "\n".join(context_parts)
@@ -146,6 +222,101 @@ class ContextInjector:
 # 注意：不再需要 import tools 副作用导入
 # 常用工具（BashTool, ReadFileTool, WriteFileTool）已默认导出
 # 其他工具通过 ToolRegistry 按需加载
+
+
+class TaskComplexityConfig:
+    """
+    任务复杂度判断配置 - 从配置文件加载模式列表
+
+    避免在代码中硬编码判断模式
+    """
+
+    # 默认模式（当 YAML 配置不可用时）
+    _default_simple_patterns = [
+        "你好", "您好", "hello", "hi",  # 问候
+        "谢谢", "感谢", "bye", "再见",  # 礼貌用语
+        "你是谁", "你能做什么", "介绍下",  # 基础问答
+    ]
+
+    _default_complex_patterns = [
+        "工作流", "CI/CD", "部署流程", "测试流程",
+    ]
+
+    _default_complexity_judge_prompt = """你是一个任务复杂度分类器。请判断以下用户输入是否需要多步规划和复杂推理：
+
+用户输入：{user_input}
+
+判断标准：
+- 简单任务：单一问题、概念解释、代码片段、翻译、计算、**信息查询**（如天气、新闻、时间、政策、安排等）
+- 复杂任务：需要多步骤、多工具协作、系统设计、流程规划、分析研究、项目执行
+
+注意：用户查询类问题（如"xxx 安排"、"xxx 时间"、"xxx 政策"）通常是简单信息查询，不是复杂任务。
+
+请只回答一个词：simple 或 complex"""
+
+    _simple_patterns: list = None
+    _complex_patterns: list = None
+    _complexity_judge_prompt: str = None
+
+    @classmethod
+    def _load_patterns(cls) -> None:
+        """从 YAML 加载模式列表"""
+        if cls._simple_patterns is not None:
+            return  # 已加载
+
+        try:
+            import yaml
+            config_path = os.path.join(
+                os.path.dirname(os.path.dirname(__file__)),
+                'configs',
+                'cli_keywords.yaml'
+            )
+
+            if os.path.exists(config_path):
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    config = yaml.safe_load(f) or {}
+
+                    # 加载任务复杂度判断模式
+                    if 'task_complexity' in config:
+                        task_config = config['task_complexity']
+                        if 'simple_patterns' in task_config:
+                            cls._simple_patterns = list(set(cls._default_simple_patterns + task_config['simple_patterns']))
+                        if 'complex_patterns' in task_config:
+                            cls._complex_patterns = list(set(cls._default_complex_patterns + task_config['complex_patterns']))
+
+                    # 加载 LLM 复杂度判断提示词
+                    if 'llm_prompts' in config:
+                        prompt_config = config['llm_prompts']
+                        if 'complexity_judge' in prompt_config:
+                            cls._complexity_judge_prompt = prompt_config['complexity_judge']
+        except Exception:
+            pass  # 使用默认值
+
+        # 确保有值
+        if cls._simple_patterns is None:
+            cls._simple_patterns = cls._default_simple_patterns
+        if cls._complex_patterns is None:
+            cls._complex_patterns = cls._default_complex_patterns
+        if cls._complexity_judge_prompt is None:
+            cls._complexity_judge_prompt = cls._default_complexity_judge_prompt
+
+    @classmethod
+    def get_simple_patterns(cls) -> list:
+        """获取简单任务模式"""
+        cls._load_patterns()
+        return cls._simple_patterns
+
+    @classmethod
+    def get_complex_patterns(cls) -> list:
+        """获取复杂任务模式"""
+        cls._load_patterns()
+        return cls._complex_patterns
+
+    @classmethod
+    def get_complexity_judge_prompt(cls) -> str:
+        """获取复杂度判断提示词"""
+        cls._load_patterns()
+        return cls._complexity_judge_prompt
 
 
 class CLIAgent:
@@ -241,11 +412,8 @@ class CLIAgent:
             return False
 
         # 明显的简单任务模式（直接返回，不调用 LLM）
-        simple_patterns = [
-            "你好", "您好", "hello", "hi",  # 问候
-            "谢谢", "感谢", "bye", "再见",  # 礼貌用语
-            "你是谁", "你能做什么", "介绍下",  # 基础问答
-        ]
+        # 从配置加载，避免硬编码
+        simple_patterns = TaskComplexityConfig.get_simple_patterns()
 
         for pattern in simple_patterns:
             if pattern in user_input.lower():
@@ -254,9 +422,8 @@ class CLIAgent:
                 return False
 
         # 明显的复杂任务模式（多步骤、多条件）
-        complex_patterns = [
-            "工作流", "CI/CD", "部署流程", "测试流程",
-        ]
+        # 从配置加载，避免硬编码
+        complex_patterns = TaskComplexityConfig.get_complex_patterns()
 
         for pattern in complex_patterns:
             if pattern in user_input:
@@ -281,17 +448,9 @@ class CLIAgent:
             True: 复杂任务（需要规划）
             False: 简单任务（直接处理）
         """
-        prompt = f"""你是一个任务复杂度分类器。请判断以下用户输入是否需要多步规划和复杂推理：
-
-用户输入：{user_input}
-
-判断标准：
-- 简单任务：单一问题、概念解释、代码片段、翻译、计算、**信息查询**（如天气、新闻、时间、政策、安排等）
-- 复杂任务：需要多步骤、多工具协作、系统设计、流程规划、分析研究、项目执行
-
-注意：用户查询类问题（如"xxx 安排"、"xxx 时间"、"xxx 政策"）通常是简单信息查询，不是复杂任务。
-
-请只回答一个词：simple 或 complex"""
+        # 从配置加载提示词，避免硬编码
+        prompt_template = TaskComplexityConfig.get_complexity_judge_prompt()
+        prompt = prompt_template.format(user_input=user_input)
 
         try:
             # 构建消息格式用于 LLM 调用

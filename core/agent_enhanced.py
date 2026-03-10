@@ -89,7 +89,9 @@ class EnhancedAgent(Agent):
         return "direct"
     
     async def _estimate_complexity(self, task: str) -> float:
-        keywords = ["设计", "架构", "系统", "复杂", "多个", "完整", "从 0"]
+        # 从配置加载关键词，避免硬编码
+        from configs.common_keywords import CommonKeywordsConfig
+        keywords = CommonKeywordsConfig.get_complexity_keywords()
         score = sum(0.15 for kw in keywords if kw in task)
         return min(score, 1.0)
     

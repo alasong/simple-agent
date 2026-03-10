@@ -136,7 +136,9 @@ class PairProgramming:
     
     def _is_approved(self, feedback: str) -> bool:
         """检查是否通过审查"""
-        approval_keywords = ["lgtm", "无需修改", "通过", "approved", "looks good", "完美"]
+        # 从配置加载关键词，避免硬编码
+        from configs.common_keywords import CommonKeywordsConfig
+        approval_keywords = CommonKeywordsConfig.get_approval_keywords()
         feedback_lower = feedback.lower()
         return any(kw in feedback_lower for kw in approval_keywords)
 
@@ -482,7 +484,9 @@ class CodeReviewLoop:
     
     def _is_approved(self, feedback: str) -> bool:
         """检查是否通过"""
-        approval_keywords = ["lgtm", "通过", "approved", "looks good"]
+        # 从配置加载关键词，避免硬编码
+        from configs.common_keywords import CommonKeywordsConfig
+        approval_keywords = CommonKeywordsConfig.get_approval_keywords()
         return any(kw in feedback.lower() for kw in approval_keywords)
     
     async def _run_agent(self, agent: Any, prompt: str) -> str:

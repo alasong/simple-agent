@@ -1,0 +1,54 @@
+# Workflow Generator 配置
+# 用于自动生成工作流定义
+# 避免在代码中硬编码提示词
+
+# 工作流生成提示词模板
+prompts:
+  # 工作流定义生成提示词
+  workflow_generation: |
+    分析以下任务描述，生成一个多步骤工作流。
+
+    任务描述：{description}
+
+    请输出 JSON 格式的工作流定义：
+    {{
+        "name": "工作流名称",
+        "description": "工作流描述",
+        "steps": [
+            {{
+                "name": "步骤名称",
+                "agent_description": "Agent 功能描述（用于自动创建 Agent）",
+                "tools": ["工具标签，如 file/check/code"]
+            }}
+        ]
+    }}
+
+    要求：
+    1. 将任务分解为 2-5 个清晰的步骤
+    2. 每个步骤对应一个 Agent
+    3. tools 根据步骤功能选择：file(文件操作), check(检查), code(代码相关)
+    4. 只输出 JSON，不要其他内容
+
+# 默认工作流定义（当 JSON 解析失败时使用）
+default_workflow:
+  name: "默认工作流"
+  description_template: "{description}"
+  steps:
+    - name: "执行"
+      agent_description_template: "{description}"
+      tools: []
+
+# 步骤命名模板
+step_naming:
+  prefix: "步骤"
+  default_name_template: "步骤{i}: {step_desc}"
+  name_max_length: 50
+
+# 工具标签映射
+tool_aliases:
+  "文件": "file"
+  "检查": "check"
+  "代码": "code"
+  "bash": "bash"
+  "网络": "web"
+  "搜索": "web"

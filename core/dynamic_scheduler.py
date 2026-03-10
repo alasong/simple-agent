@@ -235,17 +235,11 @@ class DynamicScheduler:
         description = getattr(agent, 'description', '').lower()
         text = f"{name} {description}"
 
-        skills = []
-        skill_keywords = {
-            'coding': ['code', 'develop', 'program', 'write', 'implement'],
-            'testing': ['test', 'qa', 'verify', 'validate'],
-            'reviewing': ['review', 'audit', 'check', 'inspect'],
-            'analysis': ['analyz', 'research', 'investigat'],
-            'planning': ['plan', 'design', 'architect'],
-            'writing': ['write', 'document', 'explain'],
-            'debugging': ['debug', 'fix', 'troubleshoot'],
-        }
+        # 从配置加载技能关键词，避免硬编码
+        from configs.common_keywords import CommonKeywordsConfig
+        skill_keywords = CommonKeywordsConfig.get_skill_keywords()
 
+        skills = []
         for skill, keywords in skill_keywords.items():
             if any(kw in text for kw in keywords):
                 skills.append(skill)
