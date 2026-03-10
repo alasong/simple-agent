@@ -306,7 +306,7 @@ class Agent:
         verbose: bool
     ) -> Any:
         """处理异常并执行自愈"""
-        from .self_healing import get_coordinator
+        from .resilience.self_healing import get_coordinator
 
         coordinator = get_coordinator()
         result = coordinator.handle_exception(
@@ -329,7 +329,7 @@ class Agent:
         pending_actions: List[Dict]
     ):
         """保存执行断点"""
-        from .self_healing import get_coordinator
+        from .resilience.self_healing import get_coordinator
 
         coordinator = get_coordinator()
         coordinator.save_checkpoint(
