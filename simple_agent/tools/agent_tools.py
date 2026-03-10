@@ -55,41 +55,86 @@ class InvokeAgentTool(BaseTool):
         return {
             "type": "object",
             "properties": {
+                "agent_name": {
+                    "type": "string",
+                    "description": "Agent 名称 (SoftwareDeveloper, developer, reviewer, tester, architect, documenter, deployer 等)"
+                },
                 "agent_type": {
                     "type": "string",
-                    "description": "Agent 类型 (developer, reviewer, tester, architect, documenter, deployer)"
+                    "description": "Agent 类型 (同上，兼容旧参数)"
                 },
                 "task": {
                     "type": "string",
                     "description": "要执行的子任务描述"
+                },
+                "task_description": {
+                    "type": "string",
+                    "description": "任务描述 (兼容旧参数)"
+                },
+                "parameters": {
+                    "type": "object",
+                    "description": "额外的参数配置"
+                },
+                "interactive": {
+                    "type": "boolean",
+                    "description": "是否启用交互模式，在关键步骤询问用户"
                 }
             },
-            "required": ["agent_type", "task"]
+            "required": []
         }
-    
-    def execute(self, agent_type: str, task: str, **kwargs) -> ToolResult:
+
+    def execute(self, agent_name: Optional[str] = None, agent_type: Optional[str] = None,
+                task: Optional[str] = None, task_description: Optional[str] = None,
+                parameters: Optional[dict] = None, interactive: bool = False, **kwargs) -> ToolResult:
         """
         调用其他 Agent
-        
+
         Args:
-            agent_type: Agent 类型
-            task: 子任务描述
+            agent_name: Agent 名称（优先使用）
+            agent_type: Agent 类型（兼容旧参数）
+            task: 子任务描述（优先使用）
+            task_description: 任务描述（兼容旧参数）
+            parameters: 额外参数配置
+            interactive: 是否启用交互模式
         """
+        # 兼容不同参数命名
+        target_agent = agent_name or agent_type
+        target_task = task or task_description
+
+        if not target_agent or not target_task:
+            return ToolResult(
+                success=False,
+                output="",
+                error="需要指定 agent_name(或 agent_type) 和 task(或 task_description)"
+            )
+
         try:
             from simple_agent.core.agent_manager import get_agent
-            agent = get_agent(agent_type)
-            
+            agent = get_agent(target_agent)
+
             # 使用全局 verbose 设置
             verbose = get_verbose()
+
+            # 交互模式提示
+            if interactive and verbose:
+                print(f"\n[交互确认] 准备调用 {target_agent} Agent")
+                print(f"任务：{target_task[:100]}...")
+                try:
+                    confirm = input("是否继续？(Y/n): ").strip().lower()
+                    if confirm in ('n', 'no'):
+                        return ToolResult(success=False, output="", error="用户取消操作")
+                except:
+                    pass
+
             if verbose:
-                print(f"\n[InvokeAgent] 调用 {agent_type} Agent...")
-                print(f"[InvokeAgent] 任务：{task}")
-            
-            result = agent.run(task, verbose=verbose)
-            
+                print(f"\n[InvokeAgent] 调用 {target_agent} Agent...")
+                print(f"[InvokeAgent] 任务：{target_task}")
+
+            result = agent.run(target_task, verbose=verbose)
+
             if verbose:
-                print(f"\n[InvokeAgent] {agent_type} Agent 完成")
-            
+                print(f"\n[InvokeAgent] {target_agent} Agent 完成")
+
             return ToolResult(
                 success=True,
                 output=result,
