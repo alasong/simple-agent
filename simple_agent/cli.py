@@ -44,7 +44,7 @@ except ImportError:
 
 # 调试支持
 try:
-    from core import enable_debug
+    from simple_agent.core import enable_debug
     DEBUG_AVAILABLE = True
 except ImportError:
     DEBUG_AVAILABLE = False

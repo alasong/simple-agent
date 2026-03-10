@@ -36,7 +36,7 @@ class AgentNewCommand(CommandHandler):
             return CommandResult.error("请提供 Agent 描述", "用法：/new <描述>")
         
         try:
-            from core import create_agent
+            from simple_agent.core import create_agent
             
             desc = " ".join(args)
             agent = create_agent(desc)
@@ -72,7 +72,7 @@ class AgentUpdateCommand(CommandHandler):
             return CommandResult.error("请先加载或创建 Agent")
         
         try:
-            from core import update_prompt
+            from simple_agent.core import update_prompt
             
             desc = " ".join(args)
             agent = update_prompt(agent, desc)
@@ -104,7 +104,7 @@ class AgentSwitchCommand(CommandHandler):
             return CommandResult.error("请提供 Agent 名称", "用法：/switch <名称>")
         
         try:
-            from core import get_agent
+            from simple_agent.core import get_agent
             
             name = " ".join(args)
             agent = get_agent(name)
@@ -132,7 +132,7 @@ class AgentListCommand(CommandHandler):
     
     def execute(self, args: List[str], context: Dict[str, Any]) -> CommandResult:
         try:
-            from core import list_agents
+            from simple_agent.core import list_agents
             
             lines = []
             
@@ -300,7 +300,7 @@ class AgentLoadCommand(CommandHandler):
             
             for path in path_candidates:
                 if os.path.exists(path):
-                    from core import Agent
+                    from simple_agent.core import Agent
                     agent = Agent.load(path)
                     context['current_agent'] = agent
                     return CommandResult.ok(f"已加载：{agent}")

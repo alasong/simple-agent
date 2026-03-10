@@ -671,8 +671,8 @@ class CLIAgent:
             user_input: 用户输入
         """
         try:
-            from quality.checker import create_checker
-            from quality.evaluator import FeedbackEvaluator
+            from simple_agent.quality.checker import create_checker
+            from simple_agent.quality.evaluator import FeedbackEvaluator
 
             print("\n" + "=" * 60)
             print("[质量评估]")

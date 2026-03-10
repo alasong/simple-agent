@@ -30,7 +30,7 @@ class DebugCommand(CommandHandler):
         try:
             # 检查调试模块是否可用
             try:
-                from core import enable_debug, disable_debug, get_debug_summary, print_debug_summary, tracker
+                from simple_agent.core import enable_debug, disable_debug, get_debug_summary, print_debug_summary, tracker
                 DEBUG_AVAILABLE = True
             except ImportError:
                 DEBUG_AVAILABLE = False

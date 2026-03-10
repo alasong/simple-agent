@@ -35,7 +35,7 @@ class WorkflowCommand(CommandHandler):
             )
         
         try:
-            from core import Workflow
+            from simple_agent.core import Workflow
             
             workflow_path = args[0]
             task = " ".join(args[1:]) if len(args) > 1 else None

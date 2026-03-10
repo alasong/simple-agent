@@ -306,7 +306,7 @@ class CLICoordinator:
         try:
             from simple_agent.core.agent_enhanced import EnhancedAgent
             from simple_agent.core.llm import OpenAILLM
-            from core import EnhancedMemory, SkillLibrary
+            from simple_agent.core import EnhancedMemory, SkillLibrary
             
             llm = OpenAILLM()
             memory = EnhancedMemory()
@@ -321,7 +321,7 @@ class CLICoordinator:
         
         # 默认启用 debug 模式
         try:
-            from core import enable_debug
+            from simple_agent.core import enable_debug
             enable_debug(verbose=True)
         except Exception:
             pass
