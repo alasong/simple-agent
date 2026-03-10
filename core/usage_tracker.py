@@ -59,7 +59,7 @@ class UsageTracker:
         return os.path.join(
             os.path.dirname(__file__),
             "..",
-            "config",
+            "output",
             "usage_stats.json"
         )
 
@@ -69,7 +69,7 @@ class UsageTracker:
         return os.path.join(
             os.path.dirname(__file__),
             "..",
-            "config",
+            "output",
             "usage_stats"
         )
 

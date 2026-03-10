@@ -18,6 +18,7 @@
 - Agent 工具：InvokeAgentTool, CreateWorkflowTool, ListAgentsTool
 - 网络工具：WebSearchTool, HttpTool
 - 补充工具：SupplementTool, ExplainReasonTool
+- 推理工具：TreeOfThoughtTool, IterativeOptimizerTool, SwarmVotingTool, MultiPathOptimizerTool
 """
 
 # 核心工具 (80% 场景) - 默认导入
@@ -35,3 +36,4 @@ __all__ = [
 # 使用方式：
 #   from core.tool_registry import get_tool
 #   tool = get_tool("WebSearchTool")
+

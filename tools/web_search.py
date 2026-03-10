@@ -27,6 +27,7 @@ class SearchResult:
     title: str
     url: str
     snippet: str
+    source: str = ""
 
 
 @dataclass
@@ -58,7 +59,7 @@ def WebSearch(
     
     Returns:
         SearchResults 对象
-    
+
     Raises:
         Exception: 搜索失败时抛出异常
     """
@@ -66,16 +67,51 @@ def WebSearch(
     bing_api_key = os.environ.get("BING_SEARCH_API_KEY")
     google_api_key = os.environ.get("GOOGLE_SEARCH_API_KEY")
     google_cse_id = os.environ.get("GOOGLE_CSE_ID")
-    
+
+    results = None
+
     # 优先使用 Bing API
     if bing_api_key:
-        results = _bing_search(query, bing_api_key, allowed_domains, blocked_domains, num_results)
+        try:
+            results = _bing_search(query, bing_api_key, allowed_domains, blocked_domains, num_results)
+        except Exception as e:
+            print(f"[WebSearch] Bing API 失败：{e}")
+
     # 其次使用 Google Custom Search
-    elif google_api_key and google_cse_id:
-        results = _google_search(query, google_api_key, google_cse_id, allowed_domains, blocked_domains, num_results)
-    # 回退到 DuckDuckGo HTML 搜索（无需 API）
-    else:
-        results = _duckduckgo_search(query, allowed_domains, blocked_domains, num_results)
+    if not results and google_api_key and google_cse_id:
+        try:
+            results = _google_search(query, google_api_key, google_cse_id, allowed_domains, blocked_domains, num_results)
+        except Exception as e:
+            print(f"[WebSearch] Google API 失败：{e}")
+
+    # 检测是否是财经相关查询
+    finance_keywords = ["股市", "股票", "财经", "基金", "行情", "热点", "今日", "当前", "最新", "A 股", "港股", "美股"]
+    is_finance_query = any(kw in query.lower() for kw in finance_keywords)
+
+    # 财经查询：优先使用中国财经网站（快速响应）
+    if is_finance_query:
+        try:
+            results = _search_china_finance(query, num_results)
+        except Exception as e:
+            print(f"[WebSearch] 财经网站抓取失败：{e}")
+
+    # 非财经查询或财经抓取失败：尝试 DuckDuckGo（缩短超时）
+    if not results:
+        try:
+            results = _duckduckgo_search(query, allowed_domains, blocked_domains, num_results)
+        except Exception as e:
+            print(f"[WebSearch] DuckDuckGo 失败：{e}")
+
+    # 最终降级：再次尝试财经网站（如果之前跳过）
+    if not results and not is_finance_query:
+        try:
+            results = _search_china_finance(query, num_results)
+        except Exception as e:
+            print(f"[WebSearch] 财经网站抓取失败：{e}")
+
+    # 如果所有方法都失败，返回空结果
+    if not results:
+        results = SearchResults(query=query, search_results=[], total_results=0)
     
     # 如果需要抓取网页内容
     if fetch_content and results.search_results:
@@ -205,14 +241,14 @@ def _duckduckgo_search(
         for domain in blocked_domains:
             search_query = f"{search_query} -site:{domain}"
     
-    # DuckDuckGo HTML 搜索
+    # DuckDuckGo HTML 搜索（超时缩短为 5 秒，避免长时间等待）
     url = _get_api_endpoint('duckduckgo') or "https://html.duckduckgo.com/html/"
     data = {"q": search_query}
     config = get_config()
     user_agent = config.get('user_agent', 'Mozilla/5.0')
     headers = {"User-Agent": user_agent}
-    
-    response = requests.post(url, data=data, headers=headers, timeout=10)
+
+    response = requests.post(url, data=data, headers=headers, timeout=5)
     response.raise_for_status()
     
     # 解析 HTML 结果
@@ -245,6 +281,214 @@ def _duckduckgo_search(
         search_results=results,
         total_results=len(results)
     )
+
+
+def _search_china_finance(
+    query: str,
+    num_results: int = 10
+) -> SearchResults:
+    """
+    直接从中国财经网站获取信息（最终降级方案）
+
+    优先使用新浪财经（访问稳定），降级到同花顺
+    """
+    from bs4 import BeautifulSoup
+
+    # 根据查询选择 URL
+    urls = {
+        "热点": "https://finance.sina.com.cn/stock/",
+        "股市": "https://finance.sina.com.cn/stock/",
+        "行情": "https://finance.sina.com.cn/",
+        "新闻": "https://finance.sina.com.cn/",
+        "基金": "https://finance.sina.com.cn/fund/",
+        "港股": "https://finance.sina.com.cn/stock/hkstock/",
+        "美股": "https://finance.sina.com.cn/stock/usstock/",
+    }
+
+    selected_url = None
+    for keyword, url in urls.items():
+        if keyword in query:
+            selected_url = url
+            break
+
+    # 默认使用新浪财经首页
+    if not selected_url:
+        selected_url = "https://finance.sina.com.cn/"
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                     "AppleWebKit/537.36 (KHTML, like Gecko) "
+                     "Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    }
+
+    results = []
+
+    try:
+        response = requests.get(selected_url, headers=headers, timeout=15)
+        response.raise_for_status()
+
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # 新浪财经新闻选择器
+        selectors = [
+            '.main-content a',
+            '.title a',
+            'h2 a',
+            'h3 a',
+            '.blk1 li a',
+            '.news a',
+            'a[title*="股份"]',
+            'a[title*="涨停"]',
+            'a[title*="股市"]',
+        ]
+
+        seen_titles = set()
+
+        for selector in selectors:
+            items = soup.select(selector)
+            for item in items:
+                title = item.get_text(strip=True)
+                href = item.get('href', '')
+
+                # 过滤
+                if not title or len(title) < 5 or len(title) > 100:
+                    continue
+                if not href or not href.startswith('http'):
+                    continue
+                if title in seen_titles:
+                    continue
+
+                seen_titles.add(title)
+
+                results.append(SearchResult(
+                    title=title,
+                    url=href,
+                    snippet="",
+                    source="新浪财经"
+                ))
+
+                if len(results) >= num_results:
+                    break
+
+            if len(results) >= num_results:
+                break
+
+    except Exception as e:
+        print(f"[Sina Finance] 抓取失败：{e}")
+        # 降级到同花顺
+        return _search_10jqka(query, num_results)
+
+    # 如果没有结果，尝试同花顺
+    if not results:
+        results = _search_10jqka(query, num_results)
+
+    return SearchResults(
+        query=query,
+        search_results=results,
+        total_results=len(results)
+    )
+
+
+def _search_10jqka(query: str, num_results: int = 10) -> SearchResults:
+    """从同花顺获取财经新闻"""
+    from bs4 import BeautifulSoup
+
+    url = "http://www.10jqka.com.cn/"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    }
+
+    results = []
+
+    try:
+        response = requests.get(url, headers=headers, timeout=15)
+        response.raise_for_status()
+
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # 同花顺新闻选择器
+        selectors = [
+            '.newsitem a',
+            '.news_title a',
+            '.list_item a',
+            'article h3 a',
+        ]
+
+        for selector in selectors:
+            items = soup.select(selector)[:num_results]
+            for item in items:
+                title = item.get_text(strip=True)
+                href = item.get('href', '')
+
+                if title and len(title) > 5:
+                    results.append(SearchResult(
+                        title=title,
+                        url=href if href.startswith('http') else f"http:{href}",
+                        snippet="",
+                        source="同花顺"
+                    ))
+
+            if len(results) >= num_results:
+                break
+
+    except Exception as e:
+        print(f"[10jqka] 抓取失败：{e}")
+
+    return SearchResults(
+        query=query,
+        search_results=results,
+        total_results=len(results)
+    )
+
+
+def _get_finance_rss(query: str, num_results: int = 10) -> List[SearchResult]:
+    """从 RSS 源获取财经新闻（更稳定）"""
+    try:
+        from bs4 import BeautifulSoup
+    except ImportError:
+        return []
+
+    # 可用的 RSS 源（使用 HTTPS）
+    rss_feeds = {
+        "东方财富": "https://rss.eastmoney.com/news.xml",
+        "新浪": "https://finance.sina.com.cn/rss/roll.xml",
+    }
+
+    results = []
+
+    for source, url in rss_feeds.items():
+        try:
+            headers = {
+                "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15"
+            }
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code != 200:
+                continue
+
+            soup = BeautifulSoup(response.text, 'xml')
+            items = soup.find_all('item')[:num_results]
+
+            for item in items:
+                title = item.find('title')
+                link = item.find('link')
+                desc = item.find('description')
+
+                if title and title.get_text(strip=True):
+                    results.append(SearchResult(
+                        title=title.get_text(strip=True)[:100],
+                        url=link.get_text(strip=True) if link else "",
+                        snippet=desc.get_text(strip=True)[:200] if desc else "",
+                        source=source,
+                    ))
+
+            if len(results) >= num_results:
+                break
+
+        except Exception:
+            continue
+
+    return results[:num_results]
 
 
 def fetch_webpage_content(url: str, max_length: int = 3000) -> str:

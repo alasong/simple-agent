@@ -171,6 +171,11 @@ class ToolRegistry:
             "listagentstool": "tools.agent_tools",
             "supplementtool": "tools.supplement",
             "explainreasontool": "tools.supplement",
+            # 推理工具
+            "treeofthoughttool": "tools.reasoning_tools_wrappers",
+            "iterativeoptimizertool": "tools.reasoning_tools_wrappers",
+            "swarmvotingtool": "tools.reasoning_tools_wrappers",
+            "multipathoptimizertool": "tools.reasoning_tools_wrappers",
         }
 
         module_name = module_mappings.get(name_lower)

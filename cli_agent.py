@@ -53,8 +53,9 @@ class ContextInjectorConfig:
 
         try:
             import yaml
+            # cli_agent.py 和 configs 目录同级
             config_path = os.path.join(
-                os.path.dirname(os.path.dirname(__file__)),
+                os.path.dirname(os.path.abspath(__file__)),
                 'configs',
                 'cli_keywords.yaml'
             )
@@ -613,9 +614,16 @@ class CLIAgent:
             if os.environ.get('TESTING') or os.environ.get('PYTEST_CURRENT_TEST'):
                 return True
             return False
-        
-        # 在测试环境中跳过文件保存
-        if is_test_environment():
+
+        # 检测测试环境
+        is_testing = is_test_environment()
+
+        # Debug 模式下显示质量评估（即使在测试环境中也显示）
+        if os.environ.get('DEBUG'):
+            self._show_quality_assessment(result, user_input)
+
+        # 在测试环境中跳过文件保存（除非显式要求）
+        if is_testing:
             if os.environ.get('DEBUG_SAVE_OUTPUT'):
                 # 如果显式要求保存，则继续
                 pass
@@ -644,16 +652,109 @@ class CLIAgent:
                 f.write(f"# 任务输入\n{user_input}\n\n")
                 f.write(f"# 执行时间\n{datetime.now().isoformat()}\n\n")
                 f.write(f"# 执行结果\n{result}\n")
-            
+
             print(f"\n[输出] 已保存到：{output_file}")
-            
+
             # 返回保存的目录路径，用于在 cli.py 中显示
             return output_path
         
         except Exception as e:
             print(f"\n[警告] 保存输出失败：{e}")
             return None
-    
+
+    def _show_quality_assessment(self, result: str, user_input: str):
+        """
+        Phase 6: 显示质量评估结果（debug 模式）
+
+        Args:
+            result: Agent 输出内容
+            user_input: 用户输入
+        """
+        try:
+            from core.quality_checker import create_checker
+            from core.feedback_evaluator import FeedbackEvaluator
+
+            print("\n" + "=" * 60)
+            print("[质量评估]")
+            print("=" * 60)
+
+            # 1. 质量检查
+            checker = create_checker("general")
+            report = checker.check(result)
+
+            print(f"检查类型：{report.checklist_type}")
+            print(f"通过项：{report.passed}/{report.total}")
+            print(f"通过率：{report.pass_rate:.1%}")
+
+            if report.failed_items:
+                print(f"\n未通过检查项:")
+                for item in report.failed_items:
+                    print(f"  ❌ {item}")
+
+            if report.suggestions:
+                print(f"\n改进建议:")
+                for sug in report.suggestions:
+                    print(f"  💡 {sug}")
+
+            # 2. 输出质量评级（严格标准）
+            # 有实质性内容缺失的，全部评为"需要改进"
+            print("\n质量评级:", end=" ")
+
+            # 检查是否有实质性内容缺失
+            has_substance_issues = any(
+                "具体" in item or "示例" in item or "步骤" in item or "数据" in item
+                for item in report.failed_items
+            )
+
+            # 检查是否需要实时数据但未能获取
+            needs_realtime = any(
+                kw in user_input.lower()
+                for kw in ["当前", "今日", "现在", "最新", "实时", "热点", "行情", "股市", "股票"]
+            )
+
+            # 检查是否输出缺乏具体内容
+            lacks_content = len(result) < 300 or "无法获取" in result or "网络连接" in result
+
+            # 信息查询类任务：检查是否包含具体数据（而非步骤/示例）
+            is_info_query = any(
+                kw in user_input.lower()
+                for kw in ["什么", "哪些", "情况", "状态", "信息", "数据", "热点", "行情"]
+            )
+
+            # 对于信息查询类任务，实质性内容指的是具体数据而非步骤
+            if is_info_query:
+                # 只关心数据/信息相关的缺失，不关心步骤/示例
+                has_substance_issues = any(
+                    "数据" in item or "信息" in item
+                    for item in report.failed_items
+                )
+            else:
+                has_substance_issues = any(
+                    "具体" in item or "示例" in item or "步骤" in item or "数据" in item
+                    for item in report.failed_items
+                )
+
+            if needs_realtime and lacks_content:
+                print("⭐⭐ 需要改进（未获取到实时数据）")
+                print("\n⚠️  警示：该问题需要实时数据，但网络获取失败")
+                print("建议：1. 检查网络连接 2. 配置搜索 API 3. 使用代理")
+            elif report.pass_rate >= 0.9 and not has_substance_issues:
+                print("⭐⭐⭐⭐⭐ 优秀")
+            elif report.pass_rate >= 0.85 and not has_substance_issues:
+                print("⭐⭐⭐⭐ 良好")
+            elif report.pass_rate >= 0.7:
+                print("⭐⭐⭐ 合格（但有实质性内容缺失）")
+            else:
+                print("⭐⭐ 需要改进")
+
+            if has_substance_issues and not (needs_realtime and lacks_content):
+                print("\n⚠️  警示：回答缺乏实质性内容，建议重新获取真实数据")
+
+            print("=" * 60)
+
+        except Exception as e:
+            print(f"\n[质量评估] 评估失败：{e}")
+
     async def _ensure_queue_started(self):
         """确保任务队列已启动"""
         if not self._queue_started:
