@@ -14,6 +14,13 @@ from dataclasses import dataclass, field
 import time
 from enum import Enum
 
+# Import centralized feedback evaluator
+try:
+    from core.feedback_evaluator import FeedbackEvaluator, FeedbackQuality as CoreFeedbackQuality
+    _use_core_evaluator = True
+except ImportError:
+    _use_core_evaluator = False
+
 
 @dataclass
 class CollaborationResult:
@@ -35,8 +42,9 @@ class CollaborationResult:
         }
 
 
+# Keep local enum for backward compatibility, but map to core evaluator when available
 class FeedbackQuality(Enum):
-    """反馈质量等级"""
+    """反馈质量等级 (本地兼容版本)"""
     TOO_SHORT = "too_short"      # 过于简短
     TOO_VAGUE = "too_vague"      # 过于模糊
     POOR = "poor"                # 缺乏具体内容
@@ -68,7 +76,12 @@ class PairProgramming:
         self.navigator = navigator
         self.max_iterations = max_iterations
         self.enable_feedback_evaluation = enable_feedback_evaluation
-        self._feedback_evaluator = None
+
+        # Use centralized FeedbackEvaluator if available
+        if _use_core_evaluator and enable_feedback_evaluation:
+            self._feedback_evaluator = FeedbackEvaluator()
+        else:
+            self._feedback_evaluator = None
 
     async def execute(self, task: str, verbose: bool = True) -> CollaborationResult:
         """执行结对编程"""
@@ -212,7 +225,17 @@ class PairProgramming:
         return any(kw in feedback_lower for kw in approval_keywords)
 
     def _evaluate_feedback_quality(self, feedback: str) -> FeedbackQuality:
-        """评估反馈质量"""
+        """评估反馈质量
+
+        使用 centralized FeedbackEvaluator (如果可用)，否则使用本地评估逻辑
+        """
+        # Use centralized evaluator if available
+        if self._feedback_evaluator:
+            analysis = self._feedback_evaluator.evaluate(feedback)
+            # Map core FeedbackQuality to local enum
+            return FeedbackQuality(analysis.quality.value)
+
+        # Fallback to local evaluation
         feedback_stripped = feedback.strip()
         feedback_lower = feedback_stripped.lower()
 
@@ -250,10 +273,18 @@ class PairProgramming:
             return FeedbackQuality.POOR
 
     def _should_reject_feedback(self, feedback: str) -> bool:
-        """判断是否应拒绝当前反馈（要求重新审查）"""
+        """判断是否应拒绝当前反馈（要求重新审查）
+
+        使用 centralized FeedbackEvaluator (如果可用)，否则使用本地逻辑
+        """
         if not self.enable_feedback_evaluation:
             return False
 
+        # Use centralized evaluator if available
+        if self._feedback_evaluator:
+            return self._feedback_evaluator.should_trigger_re_review(feedback)
+
+        # Fallback to local evaluation
         quality = self._evaluate_feedback_quality(feedback)
 
         # 低质量反馈应拒绝
@@ -263,7 +294,15 @@ class PairProgramming:
         return False
 
     def _get_feedback_improvement_prompt(self, feedback: str, quality: FeedbackQuality) -> str:
-        """生成改进反馈的提示"""
+        """生成改进反馈的提示
+
+        使用 centralized FeedbackEvaluator (如果可用)，否则使用本地逻辑
+        """
+        # Use centralized evaluator if available
+        if self._feedback_evaluator:
+            return self._feedback_evaluator.get_improvement_prompt(feedback)
+
+        # Fallback to local prompts
         prompts = {
             FeedbackQuality.TOO_SHORT: (
                 "你的反馈过于简短。请提供更详细的审查意见，包括：\n"

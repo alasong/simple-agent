@@ -360,7 +360,156 @@ print(report.to_summary())
 | `core/tool_registry.py` | ✓ 完成 | 添加工具映射 |
 | `builtin_agents/configs/planner.yaml` | ✓ 完成 | 添加强制规则 |
 | `builtin_agents/configs/quality_evaluator.yaml` | ✓ 完成 | 质量评估师配置 |
+| `core/quality_checker.py` | ✓ 完成 | 质量检查器（检查清单） |
+| `core/feedback_evaluator.py` | ✓ 完成 | 反馈质量评估器 |
+| `swarm/iterative_optimizer.py` | ✓ 完成 | 多轮迭代优化器 |
+| `swarm/collaboration_patterns.py` | ✓ 完成 | 集成反馈评估到结对编程 |
+| `tests/test_quality_assurance.py` | ✓ 完成 | 质量保障测试 |
 | `docs/QUALITY_ASSURANCE.md` | ✓ 完成 | 本文档 |
+
+---
+
+## 核心组件详细文档
+
+### 1. QualityChecker (质量检查器)
+
+**文件**: `core/quality_checker.py`
+
+基于检查清单执行自动化质量检查。
+
+#### 检查清单类型
+
+| 类型 | 说明 | 配置键 |
+|------|------|--------|
+| general | 通用质量检查 | `general_checklist` |
+| code | 代码任务检查 | `code_checklist` |
+| document | 文档任务检查 | `document_checklist` |
+| review | 审查反馈检查 | `review_checklist` |
+| design | 方案设计检查 | `design_checklist` |
+| analysis | 数据分析检查 | `analysis_checklist` |
+
+#### 使用示例
+
+```python
+from core.quality_checker import QualityChecker
+
+# 创建代码检查器
+checker = QualityChecker(checklist_type='code')
+
+# 执行检查
+report = checker.check(code_content)
+
+# 获取报告
+print(f"通过率：{report.pass_rate:.1%}")
+print(f"未通过项：{report.failed_items}")
+print(f"建议：{report.suggestions}")
+```
+
+### 2. FeedbackEvaluator (反馈评估器)
+
+**文件**: `core/feedback_evaluator.py`
+
+评估审查反馈的质量，判断是否需要重新审查。
+
+#### 反馈质量等级
+
+| 等级 | 说明 | 触发操作 |
+|------|------|----------|
+| TOO_SHORT | 过于简短 | 重新审查 |
+| TOO_VAGUE | 过于模糊 | 重新审查 |
+| POOR | 缺乏具体内容 | 重新审查 |
+| PARTIAL | 有部分价值 | 可选重新审查 |
+| GOOD | 良好的反馈 | 通过 |
+| EXCELLENT | 优秀的反馈 | 通过 |
+
+#### 使用示例
+
+```python
+from core.feedback_evaluator import FeedbackEvaluator
+
+evaluator = FeedbackEvaluator()
+
+# 评估反馈
+analysis = evaluator.evaluate("代码有问题，需要修改")
+
+print(f"质量等级：{analysis.quality.value}")
+print(f"可执行：{analysis.is_actionable}")
+
+# 判断是否触发重新审查
+if evaluator.should_trigger_re_review(feedback):
+    print("反馈质量不足，需要重新审查")
+```
+
+### 3. IterativeOptimizer (迭代优化器)
+
+**文件**: `swarm/iterative_optimizer.py`
+
+通过多轮迭代和独立质量评估，持续优化方案质量。
+
+#### 使用示例
+
+```python
+from swarm.iterative_optimizer import IterativeOptimizer
+from core.quality_checker import QualityChecker
+
+# 创建优化器
+optimizer = IterativeOptimizer(
+    agents=[agent1, agent2],
+    quality_checker=QualityChecker('general'),
+    max_iterations=3,
+    quality_threshold=0.7
+)
+
+# 执行优化
+result = await optimizer.execute("如何优化 Python 代码性能")
+
+print(f"最终评分：{result.final_score:.2f}")
+print(f"迭代轮数：{result.total_iterations}")
+```
+
+---
+
+## 结对编程中的反馈评估
+
+**文件**: `swarm/collaboration_patterns.py`
+
+`PairProgramming` 类已集成 `FeedbackEvaluator`，自动评估 Navigator 的反馈质量。
+
+```python
+from swarm.collaboration_patterns import PairProgramming
+
+# 创建结对编程实例（启用反馈评估）
+pair = PairProgramming(
+    driver=driver_agent,
+    navigator=navigator_agent,
+    max_iterations=5,
+    enable_feedback_evaluation=True  # 启用反馈质量评估
+)
+
+# 执行任务
+result = await pair.execute("实现一个快速排序算法")
+
+# 检查反馈质量问题
+if result.metadata.get('feedback_quality_issues'):
+    print("发现低质量反馈:")
+    for issue in result.metadata['feedback_quality_issues']:
+        print(f"  迭代 {issue['iteration']}: {issue['quality']}")
+```
+
+### 反馈质量评估流程
+
+```
+Navigator 提供反馈
+        ↓
+FeedbackEvaluator 评估质量
+        ↓
+    ┌───────┴───────┐
+    │               │
+质量良好       质量不足 (TOO_SHORT/TOO_VAGUE/POOR)
+    │               │
+    ↓               ↓
+传递给 Driver    要求重新审查
+                提供改进提示
 
 ---
 
