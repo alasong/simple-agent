@@ -118,6 +118,12 @@ Simple Agent 是一个多 Agent 协作系统，支持群体智能、任务自动
 - `self_healing.py` - 自愈系统（熔断器、降级、记忆压缩、Agent 池、增量检查点、优雅降级）
 - `reflection_learning.py` - 反思学习系统（执行记录、性能分析、优化建议、经验存储）
 
+### core/dev/ - 软件开发支持 (新增)
+- `git_worktree.py` - Git Worktree 管理（多项目并行开发）
+- `environment_setup.py` - 开发环境配置（Python/Node.js 项目初始化）
+- `workflow.py` - 开发流程自动化（lint/test/build）
+- `tools.py` - Agent 开发工具封装
+
 ### core/ - 本地服务化 (Phase 1-2)
 - `api_models.py` - Pydantic 数据模型
 - `api_auth.py` - API Key 认证（支持速率限制）
@@ -135,7 +141,7 @@ Simple Agent 是一个多 Agent 协作系统，支持群体智能、任务自动
 ### integrations/ - IM 集成 (Phase 4)
 - `feishu.py` - 飞书机器人集成
 
-### tests/ - 测试 (71+ 个测试)
+### tests/ - 测试 (89+ 个测试)
 - `test_deep_core.py` - 14 个核心深度集成测试 (推荐)
 - `test_dynamic_scheduler.py` - 29 个测试
 - `test_workflow_parallel.py` - 30 个测试
@@ -143,6 +149,7 @@ Simple Agent 是一个多 Agent 协作系统，支持群体智能、任务自动
 - `test_self_healing.py` - 14 个自愈核心测试
 - `test_self_healing_enhanced.py` - 28 个自愈增强测试
 - `test_reflection_learning.py` - 15 个反思学习测试
+- `test_dev_tools.py` - 18 个开发工具测试 (新增)
 - 详见 `tests/README.md`
 
 ### CLI 相关
@@ -152,9 +159,9 @@ Simple Agent 是一个多 Agent 协作系统，支持群体智能、任务自动
 - `cli_coordinator.py` - CLI 协调器
 - `cli_commands/` - CLI 命令模块
 
-### builtin_agents/ - 内置 Agent (25 个)
+### builtin_agents/ - 内置 Agent (26 个)
 - `configs/` - YAML 配置文件目录
-- 核心开发：developer, architect, tester, deployer, reviewer
+- 核心开发：developer, architect, tester, deployer, reviewer, software_developer (新增)
 - 产品与设计：product_manager, documenter
 - AI/ML：ai_researcher, ml_engineer, mlops_engineer, cv_engineer, nlp_engineer, prompt_engineer
 - 数据与量化：data_analyst, data_engineer, quant_analyst, financial_analyst, credit_analyst, investment_advisor
@@ -269,11 +276,13 @@ suggestions = coordinator.get_optimization_suggestions()
 - `docs/ARCHITECTURE.md` - 架构文档
 - `docs/SWARM.md` - Swarm 使用指南
 - `docs/PROJECT_OVERVIEW.md` - 项目概述
-- `docs/BUILTIN_AGENTS.md` - 内置 Agent 详细列表 (25 个)
+- `docs/BUILTIN_AGENTS.md` - 内置 Agent 详细列表 (26 个)
 - `docs/TESTING.md` - 测试指南
 - `docs/SERVICE.md` - 本地服务化文档 (新增)
 - `docs/SELF_HEALING_ARCH.md` - 自愈系统架构设计
 - `docs/SELF_HEALING_QUICKREF.md` - 自愈系统快速参考
 - `docs/REFLECTION_LEARNING.md` - 反思学习系统文档 (新增)
+- `docs/SOFTWARE_DEVELOPMENT.md` - 软件开发支持指南 (新增)
+- `docs/SOFTWARE_DEV_SUMMARY.md` - 软件开发实施总结 (新增)
 - `tests/README.md` - 测试运行说明
 - `REFACTOR_PROGRESS.md` - 重构进度和新增功能
