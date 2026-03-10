@@ -15,11 +15,13 @@ import tempfile
 import shutil
 from typing import Dict, Any
 
-from core.workflow import (
+from scheduler.workflow_parallel import (
     ParallelWorkflow,
     ParallelStep,
     ParallelExecutionResult,
     create_parallel_workflow,
+)
+from scheduler.workflow_types import (
     ResultType,
     StepResult,
 )

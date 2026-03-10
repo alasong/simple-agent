@@ -72,7 +72,7 @@
 
 **使用示例**:
 ```python
-from core.fact_checker import FactChecker
+from simple_agent.core.fact_checker import FactChecker
 
 checker = FactChecker()
 report = checker.check("上证指数收盘 3072.45 点，上涨 22.20 点")
@@ -116,7 +116,7 @@ print(report.recommendations)
 
 **使用示例**:
 ```python
-from tools.stock_market_tool import StockMarketTool
+from simple_agent.tools.stock_market_tool import StockMarketTool
 
 tool = StockMarketTool()
 result = tool.execute(market="A")
@@ -193,8 +193,8 @@ print(result.output)
 
 **集成方式** (待实施):
 ```python
-from builtin_agents import get_agent
-from core.fact_checker import FactChecker
+from simple_agent.builtin_agents import get_agent
+from simple_agent.core.fact_checker import FactChecker
 
 # 1. 生成回答
 response = agent.run(user_query)
@@ -209,7 +209,7 @@ eval_result = evaluator.run(f"评估以下回答：{response}")
 
 # 4. 低质量触发迭代优化
 if eval_result.total_score < 3.5 or fact_report.verification_rate < 0.5:
-    from tools.reasoning_tools import IterativeOptimizerTool
+    from simple_agent.tools.reasoning_tools import IterativeOptimizerTool
     optimizer = IterativeOptimizerTool(agent)
     response = await optimizer.execute(user_query, initial_solution=response)
 ```
@@ -336,13 +336,13 @@ module_mappings = {
 ### 手动测试
 ```python
 # 测试股市数据查询
-from tools.stock_market_tool import StockMarketTool
+from simple_agent.tools.stock_market_tool import StockMarketTool
 tool = StockMarketTool()
 result = tool.execute(market="A")
 print(result.output)
 
 # 测试事实检查
-from core.fact_checker import FactChecker
+from simple_agent.core.fact_checker import FactChecker
 checker = FactChecker()
 report = checker.check("上证指数收盘 3072.45 点")
 print(report.to_summary())
@@ -391,7 +391,7 @@ print(report.to_summary())
 #### 使用示例
 
 ```python
-from core.quality_checker import QualityChecker
+from simple_agent.core.quality_checker import QualityChecker
 
 # 创建代码检查器
 checker = QualityChecker(checklist_type='code')
@@ -425,7 +425,7 @@ print(f"建议：{report.suggestions}")
 #### 使用示例
 
 ```python
-from core.feedback_evaluator import FeedbackEvaluator
+from simple_agent.core.feedback_evaluator import FeedbackEvaluator
 
 evaluator = FeedbackEvaluator()
 
@@ -449,8 +449,8 @@ if evaluator.should_trigger_re_review(feedback):
 #### 使用示例
 
 ```python
-from swarm.iterative_optimizer import IterativeOptimizer
-from core.quality_checker import QualityChecker
+from simple_agent.swarm.iterative_optimizer import IterativeOptimizer
+from simple_agent.core.quality_checker import QualityChecker
 
 # 创建优化器
 optimizer = IterativeOptimizer(
@@ -476,7 +476,7 @@ print(f"迭代轮数：{result.total_iterations}")
 `PairProgramming` 类已集成 `FeedbackEvaluator`，自动评估 Navigator 的反馈质量。
 
 ```python
-from swarm.collaboration_patterns import PairProgramming
+from simple_agent.swarm.collaboration_patterns import PairProgramming
 
 # 创建结对编程实例（启用反馈评估）
 pair = PairProgramming(

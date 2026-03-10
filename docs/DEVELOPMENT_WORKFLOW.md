@@ -84,9 +84,9 @@ class WriteFileTool(BaseTool):
 ### 1.4 完整流程示例
 
 ```python
-from core.agent import Agent
-from core.llm import OpenAILLM
-from tools.file import WriteFileTool, ReadFileTool
+from simple_agent.core.agent import Agent
+from simple_agent.core.llm import OpenAILLM
+from simple_agent.tools.file import WriteFileTool, ReadFileTool
 
 # 1. 创建 Agent
 llm = OpenAILLM()
@@ -126,8 +126,8 @@ result = agent.run(
 
 ```python
 import asyncio
-from swarm import SwarmOrchestrator
-from core.agent import Agent
+from simple_agent.swarm import SwarmOrchestrator
+from simple_agent.core.agent import Agent
 
 agents = [
     Agent(name="架构师", system_prompt="负责设计代码结构"),
@@ -165,7 +165,7 @@ result = await orchestrator.solve(
 ### 1.6 Pair Programming 模式
 
 ```python
-from swarm.collaboration_patterns import PairProgramming
+from simple_agent.swarm.collaboration_patterns import PairProgramming
 
 pp = PairProgramming(
     driver=driver_agent,    # 编写代码
@@ -312,8 +312,8 @@ ready_tasks = graph.get_ready_tasks()
 #### 使用 Swarm 和任务依赖
 
 ```python
-from swarm import SwarmOrchestrator
-from swarm.scheduler import Task
+from simple_agent.swarm import SwarmOrchestrator
+from simple_agent.swarm.scheduler import Task
 
 tasks = [
     Task(id="1", description="创建基础模型"),
@@ -405,7 +405,7 @@ python cli.py "帮我写一个计算器"
 #### Swarm 输出
 
 ```python
-from swarm import SwarmOrchestrator
+from simple_agent.swarm import SwarmOrchestrator
 
 orchestrator = SwarmOrchestrator(agents=[...])
 result = await orchestrator.solve("开发用户管理系统")
@@ -415,7 +415,7 @@ result = await orchestrator.solve("开发用户管理系统")
 #### 使用 BashTool 保存输出
 
 ```python
-from tools.bash_tool import BashTool
+from simple_agent.tools.bash_tool import BashTool
 
 bash = BashTool()
 # 创建目录并复制文件
@@ -478,11 +478,11 @@ manager.execute(...)  # 生成 task_12345.txt
 
 | 组件 | 位置 | 作用 |
 |------|------|------|
-| **Agent** | `core/agent.py` | 执行主体，协调 LLM 和工具 |
-| **WriteFileTool** | `tools/file.py` | 实际写入文件的工具 |
-| **ToolRegistry** | `core/tool.py` | 管理可用工具 |
-| **ToolCallParser** | `core/tool_parser.py` | 解析工具调用 |
-| **Memory** | `core/memory.py` | 保存对话和工具调用历史 |
+| **Agent** | `simple_agent/core/agent.py` | 执行主体，协调 LLM 和工具 |
+| **WriteFileTool** | `simple_agent/tools/file.py` | 实际写入文件的工具 |
+| **ToolRegistry** | `simple_agent/core/tool.py` | 管理可用工具 |
+| **ToolCallParser** | `simple_agent/core/tool_parser.py` | 解析工具调用 |
+| **Memory** | `simple_agent/core/memory.py` | 保存对话和工具调用历史 |
 
 ---
 

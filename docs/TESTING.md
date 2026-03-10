@@ -230,7 +230,7 @@ class MockAgent:
 ```python
 import pytest
 import asyncio
-from core.dynamic_scheduler import create_scheduler, TaskPriority
+from simple_agent.core.dynamic_scheduler import create_scheduler, TaskPriority
 
 class TestSchedulerBasic:
     """基础调度器测试"""

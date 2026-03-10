@@ -25,7 +25,7 @@
 
 **使用示例**:
 ```python
-from core.quality_checker import create_checker
+from simple_agent.core.quality_checker import create_checker
 
 # 创建代码检查器
 checker = create_checker("code")
@@ -56,7 +56,7 @@ print(report.to_summary())
 
 **使用示例**:
 ```python
-from core.quality_checker import create_checker
+from simple_agent.core.quality_checker import create_checker
 
 checker = create_checker("code")
 code = """
@@ -96,7 +96,7 @@ print(f"质量评分：{report.pass_rate:.1%}")
 
 **使用示例**:
 ```python
-from core.feedback_evaluator import FeedbackEvaluator
+from simple_agent.core.feedback_evaluator import FeedbackEvaluator
 
 evaluator = FeedbackEvaluator()
 feedback = "代码有问题"
@@ -126,7 +126,7 @@ print(f"是否应重新审查：{evaluator.should_trigger_re_review(feedback)}")
 
 **使用示例**:
 ```python
-from swarm.collaboration_patterns import PairProgramming
+from simple_agent.swarm.collaboration_patterns import PairProgramming
 
 pair = PairProgramming(
     driver=developer_agent,
@@ -162,7 +162,7 @@ print(f"反馈质量问题：{result.metadata.get('feedback_quality_issues', [])
 
 **使用示例**:
 ```python
-from swarm.iterative_optimizer import IterativeOptimizer
+from simple_agent.swarm.iterative_optimizer import IterativeOptimizer
 
 optimizer = IterativeOptimizer(
     agents=[agent1, agent2],
@@ -262,14 +262,14 @@ print(f"是否达到阈值：{result.success}")
 
 ```python
 # 1. 使用质量检查器
-from core.quality_checker import create_checker
+from simple_agent.core.quality_checker import create_checker
 
 checker = create_checker("code")
 report = checker.check(your_code)
 print(f"质量评分：{report.pass_rate:.1%}")
 
 # 2. 使用反馈评估器
-from core.feedback_evaluator import FeedbackEvaluator
+from simple_agent.core.feedback_evaluator import FeedbackEvaluator
 
 evaluator = FeedbackEvaluator()
 feedback = "第 10 行命名不清晰"
@@ -277,7 +277,7 @@ analysis = evaluator.evaluate(feedback)
 print(f"反馈质量：{analysis.quality.value}")
 
 # 3. 使用增强版结对编程
-from swarm.collaboration_patterns import PairProgramming
+from simple_agent.swarm.collaboration_patterns import PairProgramming
 
 pair = PairProgramming(
     driver=developer,
@@ -287,7 +287,7 @@ pair = PairProgramming(
 result = await pair.execute("实现功能")
 
 # 4. 使用迭代优化器
-from swarm.iterative_optimizer import IterativeOptimizer
+from simple_agent.swarm.iterative_optimizer import IterativeOptimizer
 
 optimizer = IterativeOptimizer(agents=[agent1, agent2])
 result = await optimizer.execute("解决问题")

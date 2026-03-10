@@ -110,8 +110,8 @@ domains:
 在 Swarm 编排器中使用内置 Agent：
 
 ```python
-from swarm.orchestrator import SwarmOrchestrator
-from builtin_agents import load_agents
+from simple_agent.swarm.orchestrator import SwarmOrchestrator
+from simple_agent.builtin_agents import load_agents
 
 # 加载所有内置 Agent
 agents = load_agents('builtin_agents/configs/')

@@ -11,19 +11,19 @@ import time
 from typing import List, Dict, Any
 
 # 核心组件
-from core.dynamic_scheduler import (
+from simple_agent.swarm.scheduler.scheduler import (
     DynamicScheduler,
     TaskPriority,
     create_scheduler,
     ExecutionResult,
 )
-from core.workflow import (
+from simple_agent.swarm.scheduler.workflow_parallel import (
     ParallelWorkflow,
     create_parallel_workflow,
     ParallelExecutionResult,
 )
-from swarm.orchestrator import SwarmOrchestrator
-from swarm.blackboard import Blackboard
+from simple_agent.swarm.orchestrator import SwarmOrchestrator
+from simple_agent.swarm.blackboard import Blackboard
 
 
 # ==================== Mock Agent ====================

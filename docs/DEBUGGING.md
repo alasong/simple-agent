@@ -194,7 +194,7 @@ CLI Agent - 智能任务助手
 ### 4.1 启用/禁用调试
 
 ```python
-from core import enable_debug, disable_debug
+from simple_agent.core import enable_debug, disable_debug
 
 # 启用调试（详细模式）
 enable_debug(verbose=True)
@@ -209,7 +209,7 @@ disable_debug()
 ### 4.2 Agent 调试
 
 ```python
-from core import Agent
+from simple_agent.core import Agent
 
 agent = Agent(llm=llm, name="MyAgent")
 
@@ -220,7 +220,7 @@ result = agent.run("任务描述", verbose=False, debug=True)
 ### 4.3 Workflow 调试
 
 ```python
-from core import Workflow, Agent
+from simple_agent.core import Workflow, Agent
 
 workflow = Workflow("代码审查流程")
 workflow.add_step("读取", file_agent, output_key="content")
@@ -233,7 +233,7 @@ context = workflow.run("审查 ./src/code.py", verbose=False, debug=True)
 ### 4.4 获取执行记录
 
 ```python
-from core import tracker
+from simple_agent.core import tracker
 
 # 获取最近的 Agent 执行记录
 agent_records = tracker.get_recent_agent_records(limit=10)
@@ -249,7 +249,7 @@ for record in workflow_records:
 ### 4.5 获取统计信息
 
 ```python
-from core import tracker, get_debug_summary, print_debug_summary
+from simple_agent.core import tracker, get_debug_summary, print_debug_summary
 
 # Agent 统计
 agent_stats = tracker.get_agent_stats()
@@ -270,7 +270,7 @@ print_debug_summary()
 ### 4.6 清空记录
 
 ```python
-from core import tracker
+from simple_agent.core import tracker
 
 # 清空所有执行记录
 tracker.clear()
@@ -286,14 +286,14 @@ tracker.clear()
 import os
 
 if os.environ.get("DEBUG"):
-    from core import enable_debug
+    from simple_agent.core import enable_debug
     enable_debug(verbose=True)
 ```
 
 ### 5.2 性能分析
 
 ```python
-from core import enable_debug, print_debug_summary, Agent
+from simple_agent.core import enable_debug, print_debug_summary, Agent
 
 enable_debug(verbose=False)
 
@@ -309,7 +309,7 @@ print_debug_summary()
 ### 5.3 问题排查
 
 ```python
-from core import enable_debug, tracker
+from simple_agent.core import enable_debug, tracker
 
 enable_debug(verbose=True)
 

@@ -173,7 +173,7 @@ Simple Agent 是一个多 Agent 协作系统，支持群体智能、任务自动
 
 ### DynamicScheduler (动态调度器)
 ```python
-from core.dynamic_scheduler import create_scheduler, TaskPriority
+from scheduler.scheduler import create_scheduler, TaskPriority
 
 scheduler = create_scheduler(agents=[agent1, agent2], max_concurrent=3)
 scheduler.add_task("t1", "任务描述", required_skills=["coding"], priority=TaskPriority.HIGH)
@@ -182,7 +182,7 @@ results = await scheduler.schedule_and_execute(agent_pool=agents, parallel=True)
 
 ### ParallelWorkflow (并行工作流)
 ```python
-from core.workflow_parallel import create_parallel_workflow
+from scheduler.workflow_parallel import create_parallel_workflow
 
 workflow = create_parallel_workflow(max_concurrent=3, default_timeout=60.0)
 workflow.add_task("Task A", agent_a, instance_id="project-a")
@@ -207,7 +207,7 @@ result = await swarm.solve("复杂任务")
 
 ### SelfHealing (自愈系统)
 ```python
-from core.self_healing import SelfHealingCoordinator
+from resilience.self_healing import SelfHealingCoordinator
 
 coordinator = SelfHealingCoordinator()
 
@@ -228,7 +228,7 @@ coordinator.save_increment(task_id, "iteration", {...})  # 增量保存
 
 ### ReflectionLearning (反思学习)
 ```python
-from core.workflow import Workflow
+from scheduler.workflow import Workflow
 
 workflow = Workflow("CodeReview")
 # ... add steps ...
@@ -240,7 +240,7 @@ result = workflow.run(
 )
 
 # 获取优化建议
-from core.reflection_learning import get_learning_coordinator
+from resilience.reflection import get_learning_coordinator
 coordinator = get_learning_coordinator()
 suggestions = coordinator.get_optimization_suggestions()
 ```

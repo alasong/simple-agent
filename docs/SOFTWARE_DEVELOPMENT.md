@@ -21,7 +21,7 @@ Simple Agent 提供完整的软件开发支持，包括：
 ### 2. 使用 Worktree 进行开发
 
 ```python
-from core.dev import GitWorktreeTool
+from simple_agent.core.dev import GitWorktreeTool
 
 tool = GitWorktreeTool(repo_path="/path/to/repo")
 
@@ -55,7 +55,7 @@ tool.remove("feature-login")
 ### 3. 初始化项目环境
 
 ```python
-from core.dev import DevEnvironmentTool
+from simple_agent.core.dev import DevEnvironmentTool
 
 # Python 项目
 env_tool = DevEnvironmentTool(project_path="/path/to/project")
@@ -80,7 +80,7 @@ result = env_tool.init_node(
 ### 4. 运行开发流程
 
 ```python
-from core.dev import DevWorkflowTool
+from simple_agent.core.dev import DevWorkflowTool
 
 workflow = DevWorkflowTool(project_path="/path/to/project")
 
@@ -117,7 +117,7 @@ Git Worktree 允许你在同一仓库的多个分支上并行工作，每个 wor
 ### API 参考
 
 ```python
-from core.dev.git_worktree import GitWorktreeManager
+from simple_agent.core.dev.git_worktree import GitWorktreeManager
 
 manager = GitWorktreeManager(repo_path="/path/to/repo")
 
@@ -177,7 +177,7 @@ repo/
 ### Python 项目初始化
 
 ```python
-from core.dev.environment_setup import ProjectInitializer
+from simple_agent.core.dev.environment_setup import ProjectInitializer
 
 initializer = ProjectInitializer("/path/to/new/project")
 
@@ -227,7 +227,7 @@ print(created)
 ### 环境检测
 
 ```python
-from core.dev.environment_setup import DevEnvironmentSetup
+from simple_agent.core.dev.environment_setup import DevEnvironmentSetup
 
 setup = DevEnvironmentSetup("/path/to/project")
 
@@ -284,7 +284,7 @@ result = setup.run_command(["npm", "test"])
 ### 运行单一流程
 
 ```python
-from core.dev.workflow import DevWorkflowRunner
+from simple_agent.core.dev.workflow import DevWorkflowRunner
 
 runner = DevWorkflowRunner(
     project_path="/path/to/project",
@@ -356,7 +356,7 @@ result = runner.run_workflow(
 ### 检查结果状态
 
 ```python
-from core.dev.workflow import CheckStatus
+from simple_agent.core.dev.workflow import CheckStatus
 
 if result.results[0].status == CheckStatus.PASSED:
     print("✓ 通过")
@@ -416,7 +416,7 @@ Software Developer Agent 遵循以下流程：
 ### GitWorktreeTool
 
 ```python
-from core.dev.tools import GitWorktreeTool
+from simple_agent.core.dev.tools import GitWorktreeTool
 
 tool = GitWorktreeTool(repo_path="/path/to/repo")
 
@@ -439,7 +439,7 @@ tool.switch("feature-xxx")
 ### DevEnvironmentTool
 
 ```python
-from core.dev.tools import DevEnvironmentTool
+from simple_agent.core.dev.tools import DevEnvironmentTool
 
 tool = DevEnvironmentTool(project_path="/path/to/project")
 
@@ -462,7 +462,7 @@ tool.run_command("python --version")
 ### DevWorkflowTool
 
 ```python
-from core.dev.tools import DevWorkflowTool
+from simple_agent.core.dev.tools import DevWorkflowTool
 
 tool = DevWorkflowTool(project_path="/path/to/project")
 
@@ -491,7 +491,7 @@ tool.custom_workflow(["lint", "test"])
 ### CodeReviewTool
 
 ```python
-from core.dev.tools import CodeReviewTool
+from simple_agent.core.dev.tools import CodeReviewTool
 
 tool = CodeReviewTool(project_path="/path/to/project")
 
@@ -603,7 +603,7 @@ jobs:
 ### Python 全栈项目开发
 
 ```python
-from core.dev import GitWorktreeTool, DevEnvironmentTool, DevWorkflowTool
+from simple_agent.core.dev import GitWorktreeTool, DevEnvironmentTool, DevWorkflowTool
 
 # 1. 创建 worktree
 wt_tool = GitWorktreeTool(repo_path="/path/to/myproject")

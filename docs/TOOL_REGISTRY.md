@@ -77,7 +77,7 @@
 ### 1. 工具注册表 (ToolRegistry)
 
 ```python
-from core.tool_registry import get_registry, get_tool
+from simple_agent.core.tool_registry import get_registry, get_tool
 
 # 获取全局注册表
 registry = get_registry()
@@ -100,7 +100,7 @@ tools = registry.get_tools_by_tags(["file", "io"])
 ### 2. ResourceRepository 集成
 
 ```python
-from core.resource import repo
+from simple_agent.core.resource import repo
 
 # 获取工具实例（优先从 ToolRegistry 按需加载）
 tool = repo.get_tool_instance("BashTool")
@@ -116,7 +116,7 @@ tools = repo.extract_tools_v2({
 ### 3. Builtin Agent 自动集成
 
 ```python
-from builtin_agents import create_builtin_agent
+from simple_agent.builtin_agents import create_builtin_agent
 
 # 创建 developer agent
 # 自动从配置文件加载所需工具
@@ -149,7 +149,7 @@ tools:
 ### 场景 2: 在代码中按需使用工具
 
 ```python
-from core.tool_registry import get_tool
+from simple_agent.core.tool_registry import get_tool
 
 # 只在需要时加载工具
 def analyze_data(file_path):
@@ -168,8 +168,8 @@ def analyze_data(file_path):
 
 ```python
 # my_tools/git_tools.py
-from core.tool import BaseTool
-from core.tool_registry import register_tool
+from simple_agent.core.tool import BaseTool
+from simple_agent.core.tool_registry import register_tool
 
 @register_tool(tags=["git", "version_control"])
 class GitCommitTool(BaseTool):
@@ -181,7 +181,7 @@ class GitCommitTool(BaseTool):
         return result.stdout.decode()
 
 # 使用
-from core.tool_registry import get_tool
+from simple_agent.core.tool_registry import get_tool
 git_tool = get_tool("GitCommitTool")
 git_tool.execute("feat: add new feature")
 ```
@@ -206,7 +206,7 @@ tools/
 
 ```python
 # 只使用 BashTool 时，只有 BashTool 被实例化
-from core.tool_registry import get_tool
+from simple_agent.core.tool_registry import get_tool
 tool = get_tool("BashTool")  # 懒加载
 ```
 
@@ -225,7 +225,7 @@ tool = get_tool("BashTool")  # 懒加载
 支持运行时动态注册工具：
 
 ```python
-from core.tool_registry import get_registry
+from simple_agent.core.tool_registry import get_registry
 
 registry = get_registry()
 
@@ -252,11 +252,11 @@ registry.clear_cache()
 
 ```bash
 # 工具发现测试
-python -c "from core.tool_registry import get_registry; registry = get_registry(); registry.discover_tools()"
+python -c "from simple_agent.core.tool_registry import get_registry; registry = get_registry(); registry.discover_tools()"
 # 发现 10 个工具，耗时 < 100ms
 
 # 按需加载测试
-python -c "from core.tool_registry import get_tool; tool = get_tool('BashTool')"
+python -c "from simple_agent.core.tool_registry import get_tool; tool = get_tool('BashTool')"
 # 只加载 BashTool，耗时 < 50ms
 ```
 
@@ -267,28 +267,28 @@ python -c "from core.tool_registry import get_tool; tool = get_tool('BashTool')"
 ### 1. 工具发现测试 ✅
 
 ```bash
-python -c "from core.tool_registry import get_registry; registry = get_registry(); registry.discover_tools(); print('已发现工具:', registry.list_tools())"
+python -c "from simple_agent.core.tool_registry import get_registry; registry = get_registry(); registry.discover_tools(); print('已发现工具:', registry.list_tools())"
 # 已发现工具：['SupplementTool', 'ExplainReasonTool', 'BashTool', 'InvokeAgentTool', 'CreateWorkflowTool', 'ListAgentsTool', 'HttpTool', 'ReadFileTool', 'WriteFileTool', 'WebSearchTool']
 ```
 
 ### 2. 按需加载测试 ✅
 
 ```bash
-python -c "from core.tool_registry import get_registry; registry = get_registry(); tool = registry.get_tool('BashTool'); print('已加载:', list(registry._tool_instances.keys()))"
+python -c "from simple_agent.core.tool_registry import get_registry; registry = get_registry(); tool = registry.get_tool('BashTool'); print('已加载:', list(registry._tool_instances.keys()))"
 # 已加载：['BashTool']
 ```
 
 ### 3. Resource 集成测试 ✅
 
 ```bash
-python -c "from core.resource import repo; tool = repo.get_tool_instance('BashTool'); print('获取工具实例:', tool)"
+python -c "from simple_agent.core.resource import repo; tool = repo.get_tool_instance('BashTool'); print('获取工具实例:', tool)"
 # 获取工具实例：<tools.bash_tool.BashTool object at 0x...>
 ```
 
 ### 4. Builtin Agent 创建测试 ✅
 
 ```bash
-python -c "from builtin_agents import create_builtin_agent; agent = create_builtin_agent('developer'); print('Agent 名称:', agent.name)"
+python -c "from simple_agent.builtin_agents import create_builtin_agent; agent = create_builtin_agent('developer'); print('Agent 名称:', agent.name)"
 # Agent 名称：开发工程师
 ```
 

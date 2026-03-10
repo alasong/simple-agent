@@ -214,7 +214,7 @@ docs/
 ### 完整开发流程
 
 ```python
-from core.dev import (
+from simple_agent.core.dev import (
     GitWorktreeTool,
     DevEnvironmentTool,
     DevWorkflowTool
@@ -328,8 +328,8 @@ experiment/xxx   # 实验性开发
 软件开发支持与自愈系统协同工作：
 
 ```python
-from core.self_healing import SelfHealingCoordinator
-from core.dev import DevWorkflowTool
+from simple_agent.core.self_healing import SelfHealingCoordinator
+from simple_agent.core.dev import DevWorkflowTool
 
 # 开发流程中启用自愈
 workflow = DevWorkflowTool(project_path)
@@ -357,7 +357,7 @@ except Exception as e:
 开发流程数据可以用于反思学习：
 
 ```python
-from core.reflection_learning import ReflectionLearningCoordinator
+from simple_agent.core.reflection_learning import ReflectionLearningCoordinator
 
 # 记录开发流程执行
 coordinator = ReflectionLearningCoordinator()

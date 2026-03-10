@@ -198,7 +198,7 @@ examples/
 
 ### 自愈系统
 ```python
-from core.self_healing import SelfHealingCoordinator
+from simple_agent.core.self_healing import SelfHealingCoordinator
 
 coordinator = SelfHealingCoordinator()
 
@@ -233,7 +233,7 @@ except Exception as e:
 
 ### 反思学习
 ```python
-from core.workflow import Workflow
+from simple_agent.core.workflow import Workflow
 
 # 创建工作流
 workflow = Workflow("CodeReviewWorkflow")
@@ -250,7 +250,7 @@ result = workflow.run(
 )
 
 # 获取优化建议
-from core.reflection_learning import get_learning_coordinator
+from simple_agent.core.reflection_learning import get_learning_coordinator
 coordinator = get_learning_coordinator()
 suggestions = coordinator.get_optimization_suggestions()
 

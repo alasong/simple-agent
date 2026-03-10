@@ -16,7 +16,7 @@
 ## 统一入口
 
 ```python
-from core.self_healing import SelfHealingCoordinator
+from simple_agent.core.self_healing import SelfHealingCoordinator
 
 coordinator = SelfHealingCoordinator()
 
@@ -35,7 +35,7 @@ coordinator.check_degradation(metrics)             # 优雅降级
 ## 熔断器 (Circuit Breaker)
 
 ```python
-from core.self_healing import CircuitBreaker
+from simple_agent.core.self_healing import CircuitBreaker
 
 cb = CircuitBreaker()
 
@@ -61,7 +61,7 @@ CLOSED →[3 次失败]→ OPEN →[60 秒]→ HALF_OPEN →[2 次成功]→ CLO
 ## 快速降级 (Fallback)
 
 ```python
-from core.self_healing import FallbackProvider
+from simple_agent.core.self_healing import FallbackProvider
 
 provider = FallbackProvider()
 
@@ -86,7 +86,7 @@ if result.success:
 ## 记忆压缩 (Memory Compaction)
 
 ```python
-from core.self_healing import MemoryCompactor
+from simple_agent.core.self_healing import MemoryCompactor
 
 compactor = MemoryCompactor(max_messages=50)
 
@@ -100,7 +100,7 @@ if compactor.should_compact(messages):
 ## Agent 池 (Agent Pool)
 
 ```python
-from core.self_healing import AgentPool
+from simple_agent.core.self_healing import AgentPool
 
 pool = AgentPool(pool_size=5)
 pool.warmup(["Planner", "Developer"])
@@ -114,7 +114,7 @@ agent = pool.get("Developer")
 ## 增量检查点 (Incremental Checkpoint)
 
 ```python
-from core.self_healing import IncrementalCheckpointManager
+from simple_agent.core.self_healing import IncrementalCheckpointManager
 
 manager = IncrementalCheckpointManager()
 
@@ -130,7 +130,7 @@ state = manager.load_state("task-001")
 ## 优雅降级 (Graceful Degradation)
 
 ```python
-from core.self_healing import GracefulDegradation
+from simple_agent.core.self_healing import GracefulDegradation
 
 gd = GracefulDegradation()
 

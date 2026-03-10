@@ -50,7 +50,7 @@
 所有自愈能力通过 `SelfHealingCoordinator` 统一提供：
 
 ```python
-from core.self_healing import SelfHealingCoordinator
+from simple_agent.core.self_healing import SelfHealingCoordinator
 
 coordinator = SelfHealingCoordinator()
 
@@ -164,8 +164,8 @@ if coordinator.check_degradation(metrics):
 ### 完整自愈流程
 
 ```python
-from core.self_healing import SelfHealingCoordinator
-from core.agent import Agent
+from simple_agent.core.self_healing import SelfHealingCoordinator
+from simple_agent.core.agent import Agent
 
 coordinator = SelfHealingCoordinator()
 

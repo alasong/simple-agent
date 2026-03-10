@@ -41,7 +41,7 @@
 ### 1. 安全审计器 (SecurityAuditor)
 
 ```python
-from core.script_security import SecurityAuditor
+from simple_agent.core.script_security import SecurityAuditor
 
 auditor = SecurityAuditor()
 
@@ -62,7 +62,7 @@ issues = auditor.audit_python_code(code, "module.py")
 ### 2. 沙箱执行器 (SandboxExecutor)
 
 ```python
-from core.script_security import SandboxExecutor, SecurityAuditor
+from simple_agent.core.script_security import SandboxExecutor, SecurityAuditor
 
 executor = SandboxExecutor(
     allowed_dirs=["/tmp", "/home/user"],
@@ -77,7 +77,7 @@ result = executor.execute("python script.py", auditor)
 ### 3. Python 沙箱 (PythonSandbox)
 
 ```python
-from core.script_security import PythonSandbox, SecurityError
+from simple_agent.core.script_security import PythonSandbox, SecurityError
 
 sandbox = PythonSandbox(safe_mode=True)
 
@@ -97,7 +97,7 @@ except SecurityError as e:
 ### 4. 审计日志 (AuditLogger)
 
 ```python
-from core.script_security import AuditLogger, AuditEntry
+from simple_agent.core.script_security import AuditLogger, AuditEntry
 
 logger = AuditLogger("./.security/audit.log")
 
@@ -119,7 +119,7 @@ logs = logger.get_recent_logs(limit=100)
 ### 5. 工具函数
 
 ```python
-from core.script_security import quick_audit, safe_execute, audit_file
+from simple_agent.core.script_security import quick_audit, safe_execute, audit_file
 
 # 快速审计命令
 result = quick_audit("ls -la")
@@ -229,7 +229,7 @@ tests/test_script_security.py:
 `tools/bash_tool.py` 已更新，自动使用深度安全审计：
 
 ```python
-from tools.bash_tool import BashTool
+from simple_agent.tools.bash_tool import BashTool
 
 tool = BashTool()
 
@@ -247,7 +247,7 @@ result = tool.execute(command="rm -rf /tmp/test")
 ### 场景 1: Agent 执行命令前的安全检查
 
 ```python
-from core.script_security import quick_audit
+from simple_agent.core.script_security import quick_audit
 
 def execute_agent_command(command):
     result = quick_audit(command)
@@ -263,7 +263,7 @@ def execute_agent_command(command):
 ### 场景 2: 用户上传脚本的审计
 
 ```python
-from core.script_security import audit_file
+from simple_agent.core.script_security import audit_file
 
 def check_user_script(file_path):
     issues = audit_file(file_path)
@@ -277,7 +277,7 @@ def check_user_script(file_path):
 ### 场景 3: API 接口的安全防护
 
 ```python
-from core.script_security import SecurityAuditor, SandboxExecutor
+from simple_agent.core.script_security import SecurityAuditor, SandboxExecutor
 from fastapi import HTTPException
 
 auditor = SecurityAuditor()
@@ -303,7 +303,7 @@ async def execute_command(command: str):
 ## 配置选项
 
 ```python
-from core.script_security import SecurityConfig, SecurityAuditor
+from simple_agent.core.script_security import SecurityConfig, SecurityAuditor
 
 config = SecurityConfig(
     # 超时配置

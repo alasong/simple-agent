@@ -20,9 +20,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.routing import APIRouter
 
-from core.api_auth import init_auth, get_auth
-from core.usage_tracker import init_tracker
-from core.session_store import init_store
+from services.api.auth import init_auth, get_auth
+from services.api.usage_tracker import init_tracker
+from services.session_store import init_store
 
 
 # ============================================================================

@@ -72,8 +72,8 @@ python cli.py
 
 ```python
 import asyncio
-from swarm import SwarmOrchestrator
-from core import create_agent
+from simple_agent.swarm import SwarmOrchestrator
+from simple_agent.core import create_agent
 
 # 创建 Agent 池
 agents = [
@@ -121,7 +121,7 @@ asyncio.run(main())
 
 ```python
 import asyncio
-from swarm import SwarmOrchestrator, Task
+from simple_agent.swarm import SwarmOrchestrator, Task
 
 # 创建 orchestrator
 orchestrator = SwarmOrchestrator(
@@ -147,8 +147,8 @@ print(result)
 ### 4.1 基本的 Swarm 执行
 
 ```python
-from swarm import SwarmOrchestrator
-from swarm.scheduler import Task
+from simple_agent.swarm import SwarmOrchestrator
+from simple_agent.swarm.scheduler import Task
 
 # 创建 Agent 池
 agents = [
@@ -175,7 +175,7 @@ print(f"完成：{result.tasks_completed} 个任务")
 ### 4.2 手动定义任务
 
 ```python
-from swarm.scheduler import Task, TaskStatus
+from simple_agent.swarm.scheduler import Task, TaskStatus
 
 tasks = [
     Task(
@@ -208,7 +208,7 @@ result = await orchestrator._execute_loop("开发项目")
 ### 4.3 共享黑板使用
 
 ```python
-from swarm import Blackboard
+from simple_agent.swarm import Blackboard
 
 bb = Blackboard()
 
@@ -229,7 +229,7 @@ history = bb.get_history("task1_result", limit=5)
 ### 4.4 消息总线使用
 
 ```python
-from swarm import MessageBus
+from simple_agent.swarm import MessageBus
 
 bus = MessageBus()
 
@@ -259,7 +259,7 @@ await bus.stop()
 Driver 编写代码，Navigator 审查。
 
 ```python
-from swarm import PairProgramming
+from simple_agent.swarm.collaboration_patterns import PairProgramming
 
 driver = Agent(...)    # 驾驶员：编写代码
 navigator = Agent(...) # 导航员：审查代码
@@ -281,7 +281,7 @@ print(f"迭代次数：{result.iterations}")
 多个 Agent 头脑风暴，然后评估最佳方案。
 
 ```python
-from swarm import SwarmBrainstorming
+from simple_agent.swarm import SwarmBrainstorming
 
 agents = [
     Agent(...),  # 架构师
@@ -300,7 +300,7 @@ print(f"方案：{result.output}")
 Agent 基于能力投标，能力最强的 Agent 获得执行权。
 
 ```python
-from swarm import MarketBasedAllocation
+from simple_agent.swarm import MarketBasedAllocation
 
 agents = [
     Agent(...),  # 资深开发
@@ -318,7 +318,7 @@ print(f"获胜者：{winner.name}, 出价：{bid:.2f}")
 多轮代码审查，直到质量达标。
 
 ```python
-from swarm import CodeReviewLoop
+from simple_agent.swarm import CodeReviewLoop
 
 developer = Agent(...)
 reviewers = [
@@ -364,7 +364,7 @@ print(f"失败：{status['failed']}")
 ### 6.3 自定义 Swarm 配置
 
 ```python
-from swarm import SwarmOrchestrator, Blackboard, MessageBus, TaskScheduler
+from simple_agent.swarm import SwarmOrchestrator, Blackboard, MessageBus, TaskScheduler
 
 # 自定义黑板和消息总线
 blackboard = Blackboard(max_history=200)
@@ -384,7 +384,7 @@ orchestrator = SwarmOrchestrator(
 ### 6.4 动态 Scaling
 
 ```python
-from swarm.scaling import AutoScalingOrchestrator
+from simple_agent.swarm.scaling import AutoScalingOrchestrator
 
 # 自动 scaling orchestrator
 auto_scaler = AutoScalingOrchestrator(

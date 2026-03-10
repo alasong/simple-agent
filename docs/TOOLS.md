@@ -223,7 +223,7 @@ agent.run("send_mail.py --to user@company.com")  # 用户的脚本
 如果真的需要新工具（bash 做不到时）：
 
 ```python
-from core.tool import BaseTool, ToolResult
+from simple_agent.core.tool import BaseTool, ToolResult
 
 class CustomTool(BaseTool):
     @property
@@ -249,7 +249,7 @@ class CustomTool(BaseTool):
         return ToolResult(success=True, output="结果")
 
 # 注册
-from core.resource import repo
+from simple_agent.core.resource import repo
 repo.register_tool(CustomTool, tags=["custom"])
 ```
 

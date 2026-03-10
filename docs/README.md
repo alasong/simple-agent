@@ -40,8 +40,8 @@ python cli.py
 
 ```python
 import asyncio
-from swarm import SwarmOrchestrator
-from core import create_agent
+from simple_agent.swarm import SwarmOrchestrator
+from simple_agent.core import create_agent
 
 agents = [
     create_agent("Python 开发专家"),

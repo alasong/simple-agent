@@ -95,7 +95,7 @@ Planner Agent 根据任务类型自动选择合适的迭代工具：
 
 **API**：
 ```python
-from tools.reasoning_tools import MultiPathOptimizerTool
+from simple_agent.tools.reasoning_tools import MultiPathOptimizerTool
 
 tool = MultiPathOptimizerTool(
     agent,
@@ -163,7 +163,7 @@ print(f"评分：{result['best_solution']['score']}")
 
 **API**：
 ```python
-from tools.reasoning_tools import IterativeOptimizerTool
+from simple_agent.tools.reasoning_tools import IterativeOptimizerTool
 
 tool = IterativeOptimizerTool(
     agent,
@@ -220,7 +220,7 @@ print(f"迭代次数：{result['total_iterations']}")
 
 **API**：
 ```python
-from tools.reasoning_tools import SwarmVotingTool
+from simple_agent.tools.reasoning_tools import SwarmVotingTool
 
 tool = SwarmVotingTool(
     agents=[agent1, agent2, agent3],
@@ -282,7 +282,7 @@ print(f"评分：{result['winning_proposal']['score']}")
 
 **API**：
 ```python
-from tools.reasoning_tools import TreeOfThoughtTool
+from simple_agent.tools.reasoning_tools import TreeOfThoughtTool
 
 tool = TreeOfThoughtTool(
     agent,

@@ -34,7 +34,7 @@
 记录详细的执行指标：
 
 ```python
-from core.reflection_learning import ExecutionRecorder
+from simple_agent.core.reflection_learning import ExecutionRecorder
 
 recorder = ExecutionRecorder(storage_dir="./reflection_logs")
 
@@ -90,7 +90,7 @@ recorder.finish_recording(
 | `wait_time` | 可并行化的等待时间 | 独立步骤 |
 
 ```python
-from core.reflection_learning import PerformanceAnalyzer
+from simple_agent.core.reflection_learning import PerformanceAnalyzer
 
 analyzer = PerformanceAnalyzer()
 bottlenecks, stats = analyzer.analyze(execution_record)
@@ -118,7 +118,7 @@ bottlenecks, stats = analyzer.analyze(execution_record)
 | `wait_time` | 并行化执行 | 40-70% |
 
 ```python
-from core.reflection_learning import OptimizationSuggester
+from simple_agent.core.reflection_learning import OptimizationSuggester
 
 suggester = OptimizationSuggester()
 suggestions = suggester.generate_suggestions(bottlenecks, record)
@@ -134,7 +134,7 @@ for suggestion in suggestions:
 存储和检索成功优化经验：
 
 ```python
-from core.reflection_learning import ExperienceStore
+from simple_agent.core.reflection_learning import ExperienceStore
 
 store = ExperienceStore(storage_file="./experiences.json")
 
@@ -161,7 +161,7 @@ for exp in similar:
 ### 启用反思学习
 
 ```python
-from core.workflow import Workflow
+from simple_agent.core.workflow import Workflow
 
 workflow = Workflow("CodeReviewWorkflow")
 workflow.add_step("代码分析", developer_agent)
@@ -217,7 +217,7 @@ result = workflow.run(
 
 # 查看经验统计
 .venv/bin/python -c "
-from core.reflection_learning import get_learning_coordinator
+from simple_agent.core.reflection_learning import get_learning_coordinator
 coordinator = get_learning_coordinator()
 stats = coordinator.get_experience_statistics()
 print(f'总经验数：{stats[\"total\"]}')
@@ -230,8 +230,8 @@ print(f'平均提升：{stats[\"avg_improvement\"]}%')
 反思学习与自愈系统协同工作：
 
 ```python
-from core.self_healing import SelfHealingCoordinator
-from core.reflection_learning import ReflectionLearningCoordinator
+from simple_agent.core.self_healing import SelfHealingCoordinator
+from simple_agent.core.reflection_learning import ReflectionLearningCoordinator
 
 # 自愈协调器
 self_healing = SelfHealingCoordinator()

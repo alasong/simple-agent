@@ -14,7 +14,7 @@ import time
 from typing import List, Dict, Any
 
 # 被测试模块
-from core.dynamic_scheduler import (
+from scheduler.scheduler import (
     DynamicScheduler,
     AgentInfo,
     ScheduledTask,
