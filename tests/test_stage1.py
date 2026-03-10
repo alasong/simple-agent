@@ -8,7 +8,7 @@ sys.path.insert(0, '/home/song/simple-agent')
 
 async def test_memory_enhanced():
     """测试增强记忆系统"""
-    from core.memory_enhanced import EnhancedMemory, Experience
+    from simple_agent.core.memory_enhanced import EnhancedMemory, Experience
     
     mem = EnhancedMemory()
     exp = Experience(
@@ -28,7 +28,7 @@ async def test_memory_enhanced():
 
 async def test_skill_library():
     """测试技能库"""
-    from core.skill_learning import SkillLibrary
+    from simple_agent.core.skill_learning import SkillLibrary
     
     lib = SkillLibrary()
     
@@ -44,7 +44,7 @@ async def test_skill_library():
 
 async def test_reasoning_modes():
     """测试推理模式"""
-    from core.reasoning_modes import ReflectionLoop
+    from simple_agent.core.reasoning_modes import ReflectionLoop
     
     trajectory = [
         ('思考 1', '行动 1', '结果 1 - 成功'),

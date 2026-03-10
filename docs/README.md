@@ -2,38 +2,41 @@
 
 ## 📚 文档概览
 
-本目录包含 Simple Agent 系统的所有整合文档。
+Simple Agent 是一个多 Agent 协作系统，支持群体智能、任务自动分解、智能调度和多种协作模式。
 
 ---
 
-## 文档结构
+## 核心文档（5 个）
 
 | 文档 | 说明 |
 |------|------|
-| **[ARCHITECTURE.md](./ARCHITECTURE.md)** | 架构设计、升级方案、审查报告 |
-| **[SWARM.md](./SWARM.md)** | Swarm 群体智能使用指南 |
-| **[DEBUGGING.md](./DEBUGGING.md)** | 调试系统、CLI 调试命令 |
-| **[DEVELOPMENT_WORKFLOW.md](./DEVELOPMENT_WORKFLOW.md)** | 代码开发流程、逐步写入、输出目录管理 |
-| **[TESTING_AND_FEATURES.md](./TESTING_AND_FEATURES.md)** | 测试策略、增强功能、深度防护、后台任务 |
-| **[PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md)** | 项目概述 |
-| **[CLI_REFACTOR_PLAN.md](./CLI_REFACTOR_PLAN.md)** | CLI 重构计划 |
-| **[DOCUMENTATION_SUMMARY.md](./DOCUMENTATION_SUMMARY.md)** | 文档整合总结 |
+| **[01-快速开始](./01-QUICKSTART.md)** | 快速入门、安装、基本使用 |
+| **[02-架构设计](./02-ARCHITECTURE.md)** | 系统架构、核心组件、设计原理 |
+| **[03-使用指南](./03-USER-GUIDE.md)** | Swarm 使用、协作模式、最佳实践 |
+| **[04-开发指南](./04-DEVELOPMENT.md)** | 代码开发、调试、测试 |
+| **[05-高级功能](./05-ADVANCED.md)** | 自愈系统、反思学习、软件开发支持 |
 
 ---
 
 ## 快速开始
 
-### 在 CLI 中使用
+### 安装
 
 ```bash
+# 使用虚拟环境
+python -m venv .venv
+source .venv/bin/activate  # Linux/macOS
+pip install -r requirements.txt
+```
+
+### 运行 CLI
+
+```bash
+# 交互模式
 python cli.py
-```
 
-直接输入复杂任务，Swarm 会自动执行：
-
-```
-[CLI Agent] 你：帮我开发一个完整的用户登录系统
-[Swarm] 自动分解任务并分配给多个 Agent 协作完成
+# 单次任务
+python cli.py "帮我写一个计算器函数"
 ```
 
 ### 使用 Python API
@@ -59,92 +62,28 @@ asyncio.run(main())
 
 ---
 
-## 快速导航
+## 其他文档
 
-### 我想要...
+### 参考文档
+- **[BUILTIN_AGENTS](./BUILTIN_AGENTS.md)** - 26 个内置 Agent 列表
+- **[TOOLS](./TOOLS.md)** - 工具使用指南
+- **[TESTING](./TESTING.md)** - 测试指南
 
-| 需求 | 查看文档 |
-|------|---------|
-| 了解系统架构 | [ARCHITECTURE.md](./ARCHITECTURE.md) |
-| 使用 Swarm | [SWARM.md](./SWARM.md) |
-| 调试问题 | [DEBUGGING.md](./DEBUGGING.md) |
-| 开发代码 | [DEVELOPMENT_WORKFLOW.md](./DEVELOPMENT_WORKFLOW.md) |
-| 运行测试 | [TESTING_AND_FEATURES.md](./TESTING_AND_FEATURES.md) |
+### 服务化文档
+- **[SERVICE](./SERVICE.md)** - 本地服务化、API、守护进程
 
----
-
-## 核心组件
-
-| 组件 | 说明 |
-|------|------|
-| **SwarmOrchestrator** | 群体智能控制器 |
-| **Blackboard** | 共享黑板 |
-| **MessageBus** | 消息总线 |
-| **TaskScheduler** | 任务调度器 |
-| **EnhancedMemory** | 增强记忆系统 |
-| **SkillLibrary** | 技能库系统 |
+### 项目信息
+- **[ROADMAP](./ROADMAP.md)** - 项目路线图
+- **[DIRECTION](./DIRECTION.md)** - 发展方向
 
 ---
 
-## 协作模式
+## 归档文档（历史参考）
 
-| 模式 | 说明 |
-|------|------|
-| **PairProgramming** | 结对编程（Driver + Navigator） |
-| **SwarmBrainstorming** | 群体头脑风暴 |
-| **MarketBasedAllocation** | 市场分配任务 |
-| **CodeReviewLoop** | 代码审查循环 |
+以下文档为历史整合文档，内容已整合到核心文档中：
 
----
-
-## 测试和演示
-
-```bash
-# 运行所有测试
-python scripts/run_all_tests.py
-
-# 单独运行
-python tests/test_swarm.py
-python tests/test_swarm_stage2.py
-python tests/test_scaling.py
-
-# 运行演示
-python examples/demo_swarm.py
-```
-
----
-
-## 项目状态
-
-| 阶段 | 状态 |
-|------|------|
-| 阶段 1: Agent 能力增强 | ✅ 完成 |
-| 阶段 2: Swarm 核心 | ✅ 完成 |
-| 阶段 3: 动态扩展 | ✅ 完成 |
-| 监控可观测性 | 🔄 进行中 |
-
-**总计**: 33 个测试用例，全部通过 ✓
-
----
-
-## 更新日志
-
-### 2026-03-08
-- ✅ 整合所有文档到主题文件
-- ✅ 创建 ARCHITECTURE.md（架构）
-- ✅ 创建 SWARM.md（使用指南）
-- ✅ 创建 DEBUGGING.md（调试）
-- ✅ 创建 DEVELOPMENT_WORKFLOW.md（开发工作流）
-- ✅ 创建 TESTING_AND_FEATURES.md（测试与功能）
-
-### 2026-03-07
-- ✅ 完成阶段 2：Swarm 核心实现
-- ✅ 完成阶段 3：动态扩展功能
-- ✅ 33 个测试用例全部通过
-
-### 2026-03-06
-- ✅ 完成阶段 1：Agent 能力增强
-- ✅ 增强记忆系统、推理模式、技能学习
+- `reports/` - 各种报告和总结
+- `scripts/` - 文档生成脚本
 
 ---
 
