@@ -85,8 +85,28 @@ class WorkflowStep:
             if self.instance_id:
                 print(f"[Workflow] 实例 ID: {self.instance_id}")
             print(f"{'='*50}")
-        
-        result_text = self.agent.run(user_input, verbose=verbose, debug=debug)
+
+        # 记录步骤开始（用于反思学习）
+        start_iterations = getattr(self.agent, 'memory', None)
+
+        result_text = self.agent.run(user_input, verbose=verbose, debug=debug, output_dir=output_dir)
+
+        # 记录步骤结束（用于反思学习）
+        try:
+            from .reflection_learning import get_learning_coordinator
+            coordinator = get_learning_coordinator()
+            if coordinator.recorder._current_record:
+                coordinator.record_step_end(
+                    step_index=step_index,
+                    agent_name=self.agent.name,
+                    result=result_text[:500] if result_text else "",
+                    success=True,
+                    iterations=1,
+                    tool_calls=0,
+                    input_text=user_input
+                )
+        except Exception:
+            pass  # 反思学习可选，不影响主流程
         
         # 解析结果
         step_result = self._parse_result(result_text)
@@ -345,36 +365,49 @@ class Workflow:
         return self
     
     def run(
-        self, 
-        initial_input: str, 
-        verbose: bool = True, 
+        self,
+        initial_input: str,
+        verbose: bool = True,
         output_dir: Optional[str] = None,
         isolate_by_instance: bool = False,
-        debug: bool = False
+        debug: bool = False,
+        enable_reflection: bool = True
     ) -> Dict:
         """
         执行工作流
-        
+
         Args:
             initial_input: 初始输入
             verbose: 是否打印详细过程
             output_dir: 输出目录
             isolate_by_instance: 是否按 instance_id 隔离输出目录
             debug: 是否启用调试跟踪
-        
+            enable_reflection: 是否启用反思学习
+
         Returns:
             执行上下文（包含所有步骤的输出）
         """
         import time
         from .debug import tracker
-        
+
         # 调试跟踪
         workflow_record = None
         if debug and tracker.enabled:
             workflow_record = tracker.start_workflow_execution(
                 self.name, self.description, initial_input
             )
-        
+
+        # 反思学习记录
+        reflection_enabled = enable_reflection
+        record_id = None
+        if reflection_enabled:
+            try:
+                from .reflection_learning import get_learning_coordinator
+                coordinator = get_learning_coordinator()
+                record_id = coordinator.start(self.name, initial_input)
+            except Exception:
+                reflection_enabled = False
+
         # 初始化上下文
         self.context = {
             "_initial_input": initial_input,
@@ -473,7 +506,16 @@ class Workflow:
                 final_output,
                 success=True
             )
-        
+
+        # 结束反思学习记录
+        if reflection_enabled:
+            try:
+                from .reflection_learning import get_learning_coordinator
+                coordinator = get_learning_coordinator()
+                coordinator.finish(success=True, final_output=final_output)
+            except Exception:
+                pass
+
         return self.context
     
     def get_result(self, key: str = "_last_output") -> Any:

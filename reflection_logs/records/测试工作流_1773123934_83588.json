@@ -1,0 +1,35 @@
+{
+  "record_id": "测试工作流_1773123934_83588",
+  "workflow_name": "测试工作流",
+  "task_description": "测试任务",
+  "task_hash": "eaca3157",
+  "start_time": 1773123934.627077,
+  "end_time": 1773123938.748451,
+  "total_duration": 4.121373891830444,
+  "steps": [
+    {
+      "step_name": "step_1",
+      "step_index": 1,
+      "agent_name": "TestAgent",
+      "instance_id": null,
+      "start_time": 1773123938.747943,
+      "end_time": 1773123938.7479432,
+      "duration": 2.384185791015625e-07,
+      "input_length": 20,
+      "output_length": 154,
+      "iterations": 1,
+      "tool_calls": 0,
+      "success": true,
+      "error_message": null,
+      "memory_usage_mb": 0.0,
+      "token_usage": 0
+    }
+  ],
+  "success": true,
+  "final_output": "您好！看起来您提到了“测试任务”，但没有具体说明需要测试的内容。为了更好地帮助您，请提供更多详细信息，例如：\n\n1. 您希望测试什么类型的系统或功能？\n2. 是否有特定的测试场景或目标？\n3. 需要什么样的支持（如测试计划、测试用例设计、自动化脚本等）？\n\n请告诉我更多细节，我将根据您的需求提供相应的帮助。",
+  "error_message": null,
+  "parallel_steps": 0,
+  "sequential_steps": 1,
+  "retry_count": 0,
+  "total_token_usage": 0
+}

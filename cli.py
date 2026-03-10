@@ -219,7 +219,8 @@ def interactive_mode(coordinator: CLICoordinator):
     print(f"{'='*60}")
     print("CLI Agent - 智能任务助手 (精简版)")
     print(f"{'='*60}")
-    print("\n命令：/help | /exit | /list | /load | /workflow ...")
+    print(f"\n输出目录：{coordinator.context.output_dir}")
+    print("命令：/help | /exit | /list | /load | /workflow ...")
     print("守护进程：/start | /stop | /restart | /logs | /install-service")
     print("(使用 Tab 可补全命令)")
     
@@ -299,10 +300,11 @@ def main():
     # 创建协调器
     coordinator = CLICoordinator()
     coordinator.initialize()
-    
-    # 设置配置
-    if args.debug or args.output:
-        coordinator.context.output_dir = args.output or OUTPUT_DIR
+
+    # 设置配置 - 默认启用 output_dir，所有过程文件都输出到 output 目录
+    coordinator.context.output_dir = args.output or OUTPUT_DIR
+    if args.debug:
+        coordinator.context.debug_mode = True
     if args.isolate:
         coordinator.context.isolate_mode = True
     

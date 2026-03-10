@@ -115,6 +115,8 @@ Simple Agent 是一个多 Agent 协作系统，支持群体智能、任务自动
 - `workflow_parallel.py` - 并行工作流执行（ParallelWorkflow, ParallelStep）
 - `task_decomposer.py` - 多级任务分解器
 - `dependency_graph.py` - 依赖图管理器
+- `self_healing.py` - 自愈系统（熔断器、降级、记忆压缩、Agent 池、增量检查点、优雅降级）
+- `reflection_learning.py` - 反思学习系统（执行记录、性能分析、优化建议、经验存储）
 
 ### core/ - 本地服务化 (Phase 1-2)
 - `api_models.py` - Pydantic 数据模型
@@ -133,11 +135,14 @@ Simple Agent 是一个多 Agent 协作系统，支持群体智能、任务自动
 ### integrations/ - IM 集成 (Phase 4)
 - `feishu.py` - 飞书机器人集成
 
-### tests/ - 测试 (122 个测试)
+### tests/ - 测试 (71+ 个测试)
 - `test_deep_core.py` - 14 个核心深度集成测试 (推荐)
 - `test_dynamic_scheduler.py` - 29 个测试
 - `test_workflow_parallel.py` - 30 个测试
 - `test_swarm_integration.py` - 16 个测试
+- `test_self_healing.py` - 14 个自愈核心测试
+- `test_self_healing_enhanced.py` - 28 个自愈增强测试
+- `test_reflection_learning.py` - 15 个反思学习测试
 - 详见 `tests/README.md`
 
 ### CLI 相关
@@ -193,6 +198,46 @@ swarm = SwarmOrchestrator(
 result = await swarm.solve("复杂任务")
 ```
 
+### SelfHealing (自愈系统)
+```python
+from core.self_healing import SelfHealingCoordinator
+
+coordinator = SelfHealingCoordinator()
+
+# 工具执行前检查（熔断器）
+if not coordinator.can_execute_tool("WebSearchTool"):
+    # 使用降级策略
+    fallback = coordinator.try_fallback(...)
+
+# 异常处理
+result = coordinator.handle_exception(agent, exception, task)
+# 返回：RecoveryResult(new_agent=..., should_retry=...)
+
+# 其他功能
+coordinator.try_compact_memory(messages, task_id)  # 记忆压缩
+coordinator.get_agent("Developer")  # Agent 池快速切换
+coordinator.save_increment(task_id, "iteration", {...})  # 增量保存
+```
+
+### ReflectionLearning (反思学习)
+```python
+from core.workflow import Workflow
+
+workflow = Workflow("CodeReview")
+# ... add steps ...
+
+# 执行时启用反思学习
+result = workflow.run(
+    initial_input="审查代码",
+    enable_reflection=True  # 自动记录、分析、生成建议
+)
+
+# 获取优化建议
+from core.reflection_learning import get_learning_coordinator
+coordinator = get_learning_coordinator()
+suggestions = coordinator.get_optimization_suggestions()
+```
+
 ## 依赖
 
 - `rich>=13.0.0` - 富文本输出
@@ -227,5 +272,8 @@ result = await swarm.solve("复杂任务")
 - `docs/BUILTIN_AGENTS.md` - 内置 Agent 详细列表 (25 个)
 - `docs/TESTING.md` - 测试指南
 - `docs/SERVICE.md` - 本地服务化文档 (新增)
+- `docs/SELF_HEALING_ARCH.md` - 自愈系统架构设计
+- `docs/SELF_HEALING_QUICKREF.md` - 自愈系统快速参考
+- `docs/REFLECTION_LEARNING.md` - 反思学习系统文档 (新增)
 - `tests/README.md` - 测试运行说明
 - `REFACTOR_PROGRESS.md` - 重构进度和新增功能
