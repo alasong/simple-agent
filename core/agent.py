@@ -10,7 +10,8 @@ Agent 是可部署的实体，支持：
 
 import json
 import os
-from typing import Optional, Dict, Any, Callable
+import traceback
+from typing import Optional, Dict, Any, Callable, List
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -125,15 +126,23 @@ class Agent:
 
     # ==================== 运行主循环 ====================
 
-    def run(self, user_input: str, verbose: bool = True, debug: bool = False, output_dir: Optional[str] = None) -> str:
+    def run(
+        self,
+        user_input: str,
+        verbose: bool = True,
+        debug: bool = False,
+        output_dir: Optional[str] = None,
+        enable_self_healing: bool = True
+    ) -> str:
         """
-        主循环 - 带智能错误恢复
+        主循环 - 带智能错误恢复和自愈能力
 
         Args:
             user_input: 用户输入
             verbose: 是否打印详细过程
             debug: 是否启用调试跟踪
             output_dir: 输出目录（用于工具执行时保存文件）
+            enable_self_healing: 是否启用自愈能力
 
         Returns:
             执行结果
@@ -159,72 +168,126 @@ class Agent:
         # 感知：添加用户输入
         self.memory.add_user(user_input)
 
+        # 自愈相关
+        recovery_attempts = 0
+        max_recovery_attempts = 3 if enable_self_healing else 1
+        original_agent = self if enable_self_healing else None
+
         iteration = 0
         while iteration < self.max_iterations:
             iteration += 1
 
-            # 推理：调用 LLM
-            response = self.llm.chat(
-                messages=self.memory.get_messages(),
-                tools=self.tool_registry.get_openai_tools()
-            )
-
-            content = response["content"]
-            tool_calls = response["tool_calls"]
-
-            # 如果没有标准工具调用，尝试从 content 中解析
-            if not tool_calls and content:
-                tool_calls = self._get_parser().parse(content)
-
-            # 如果没有工具调用，返回结果
-            if not tool_calls:
-                self.memory.add_assistant(content)
-
-                if debug and tracker.enabled and debug_record:
-                    tracker.end_agent_execution(
-                        debug_record, content, success=True,
-                        tool_calls=0, iterations=iteration
+            try:
+                # 保存断点（用于自愈恢复）
+                if enable_self_healing and iteration > 1:
+                    self._save_execution_checkpoint(
+                        task_id=user_input[:50],
+                        iteration=iteration,
+                        pending_actions=[]
                     )
 
-                return content
+                # 推理：调用 LLM
+                response = self.llm.chat(
+                    messages=self.memory.get_messages(),
+                    tools=self.tool_registry.get_openai_tools()
+                )
 
-            # 添加助手消息（带工具调用）
-            self.memory.add_assistant(content, tool_calls=[
-                {"id": tc["id"], "type": "function", "function": {
-                    "name": tc["name"],
-                    "arguments": json.dumps(tc["arguments"])
-                }} for tc in tool_calls
-            ])
+                content = response["content"]
+                tool_calls = response["tool_calls"]
 
-            # 行动：执行所有工具调用
-            for tool_call in tool_calls:
-                tool_name = tool_call["name"]
-                arguments = tool_call["arguments"]
-                tool_id = tool_call["id"]
+                # 重置恢复计数（成功执行后）
+                if tool_calls and enable_self_healing:
+                    recovery_attempts = 0
 
-                # 执行工具
-                result = self._execute_tool(tool_name, arguments)
+                # 如果没有标准工具调用，尝试从 content 中解析
+                if not tool_calls and content:
+                    tool_calls = self._get_parser().parse(content)
 
-                # 失败时触发智能恢复
-                if not result.success:
-                    if verbose:
-                        print(f"[错误] 工具 {tool_name} 执行失败：{result.error}")
+                # 如果没有工具调用，返回结果
+                if not tool_calls:
+                    self.memory.add_assistant(content)
 
-                    # 使用错误增强器提供智能应对建议
-                    enhanced_error = self._error_enhancer.enhance_with_suggestions(
-                        tool_name, arguments, result.error
+                    if debug and tracker.enabled and debug_record:
+                        tracker.end_agent_execution(
+                            debug_record, content, success=True,
+                            tool_calls=0, iterations=iteration
+                        )
+
+                    return content
+
+                # 添加助手消息（带工具调用）
+                self.memory.add_assistant(content, tool_calls=[
+                    {"id": tc["id"], "type": "function", "function": {
+                        "name": tc["name"],
+                        "arguments": json.dumps(tc["arguments"])
+                    }} for tc in tool_calls
+                ])
+
+                # 行动：执行所有工具调用
+                for tool_call in tool_calls:
+                    tool_name = tool_call["name"]
+                    arguments = tool_call["arguments"]
+                    tool_id = tool_call["id"]
+
+                    # 执行工具
+                    result = self._execute_tool(tool_name, arguments)
+
+                    # 失败时触发智能恢复
+                    if not result.success:
+                        if verbose:
+                            print(f"[错误] 工具 {tool_name} 执行失败：{result.error}")
+
+                        # 使用错误增强器提供智能应对建议
+                        enhanced_error = self._error_enhancer.enhance_with_suggestions(
+                            tool_name, arguments, result.error
+                        )
+                        self.memory.add_tool_result(
+                            tool_call_id=tool_id,
+                            name=tool_name,
+                            content=enhanced_error
+                        )
+                    else:
+                        self.memory.add_tool_result(
+                            tool_call_id=tool_id,
+                            name=tool_name,
+                            content=result.output
+                        )
+
+            except Exception as e:
+                # 捕获异常并触发自愈机制
+                if enable_self_healing and recovery_attempts < max_recovery_attempts:
+                    recovery_result = self._handle_exception_with_self_healing(
+                        e, user_input, verbose
                     )
-                    self.memory.add_tool_result(
-                        tool_call_id=tool_id,
-                        name=tool_name,
-                        content=enhanced_error
-                    )
+
+                    if recovery_result.success:
+                        # 恢复成功，切换新 Agent 继续执行
+                        if recovery_result.new_agent and recovery_result.new_agent != self:
+                            print(f"[自愈] 切换到新 Agent: {recovery_result.new_agent.name}")
+                            self._switch_to_agent(recovery_result.new_agent)
+                        recovery_attempts += 1
+                        continue  # 继续执行
+                    else:
+                        # 恢复失败，继续尝试其他策略
+                        recovery_attempts += 1
                 else:
-                    self.memory.add_tool_result(
-                        tool_call_id=tool_id,
-                        name=tool_name,
-                        content=result.output
-                    )
+                    # 自愈失败或已达到最大尝试次数
+                    if verbose:
+                        print(f"[严重] 自愈机制已用尽，任务终止")
+                        if debug:
+                            traceback.print_exc()
+
+                    error_msg = f"任务执行失败：{str(e)}"
+                    if recovery_attempts > 0:
+                        error_msg += f" (已尝试自愈 {recovery_attempts} 次)"
+
+                    if debug and tracker.enabled and debug_record:
+                        tracker.end_agent_execution(
+                            debug_record, error_msg, success=False,
+                            tool_calls=0, iterations=iteration
+                        )
+
+                    return error_msg
 
         result_text = f"达到最大迭代次数 ({self.max_iterations})，任务可能未完成"
 
@@ -235,6 +298,65 @@ class Agent:
             )
 
         return result_text
+
+    def _handle_exception_with_self_healing(
+        self,
+        exception: Exception,
+        task_description: str,
+        verbose: bool
+    ) -> Any:
+        """处理异常并执行自愈"""
+        from .self_healing import get_coordinator
+
+        coordinator = get_coordinator()
+        result = coordinator.handle_exception(
+            agent=self,
+            exception=exception,
+            task_description=task_description
+        )
+
+        if verbose:
+            print(f"[自愈] 恢复策略：{result.strategy.value}")
+            if result.new_agent:
+                print(f"[自愈] 新 Agent: {result.new_agent.name}")
+
+        return result
+
+    def _save_execution_checkpoint(
+        self,
+        task_id: str,
+        iteration: int,
+        pending_actions: List[Dict]
+    ):
+        """保存执行断点"""
+        from .self_healing import get_coordinator
+
+        coordinator = get_coordinator()
+        coordinator.save_checkpoint(
+            task_id=task_id,
+            agent=self,
+            iteration=iteration,
+            memory_messages=list(self.memory.messages),
+            pending_actions=pending_actions,
+            completed_actions=[]
+        )
+
+    def _switch_to_agent(self, new_agent: Any):
+        """切换到新 Agent（保留记忆和工具）"""
+        # 复制记忆
+        for msg in self.memory.messages:
+            if msg.get("role") != "system":
+                new_agent.memory.messages.append(msg)
+
+        # 复制工具
+        for tool in self.tool_registry.get_all_tools():
+            if tool.__class__.__name__ not in [
+                t.__class__.__name__ for t in new_agent.tool_registry.get_all_tools()
+            ]:
+                new_agent.tool_registry.register(tool)
+
+        # 更新引用
+        self.__dict__.update(new_agent.__dict__)
 
     # ==================== 序列化 ====================
 

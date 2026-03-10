@@ -176,6 +176,8 @@ class ToolRegistry:
             "iterativeoptimizertool": "tools.reasoning_tools_wrappers",
             "swarmvotingtool": "tools.reasoning_tools_wrappers",
             "multipathoptimizertool": "tools.reasoning_tools_wrappers",
+            # 数据工具
+            "stockmarkettool": "tools.stock_market_tool",
         }
 
         module_name = module_mappings.get(name_lower)
