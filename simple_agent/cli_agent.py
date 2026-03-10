@@ -390,10 +390,23 @@ class CLIAgent:
 3. 调用专业 Agents 执行子任务
 4. 合并结果并返回
 
-你拥有的工具：
-- InvokeAgentTool: 调用其他 Agent
+## 软件开发任务特别处理
+
+当用户请求开发软件、应用、系统、网站等时（关键词：开发、创建、实现、构建 + 软件/系统/网站/应用等），
+**必须使用 SoftwareDeveloper Agent** 来执行任务。
+
+SoftwareDeveloper Agent 会自动：
+- 创建项目结构和环境
+- 编写代码和测试
+- 运行测试并生成报告
+- 编写文档
+
+## 你拥有的工具：
+- InvokeAgentTool: 调用其他 Agent（如 SoftwareDeveloper, Tester, Documenter 等）
 - CreateWorkflowTool: 创建工作流
-- ListAgentsTool: 查看可用的 Agent 列表""",
+- ListAgentsTool: 查看可用的 Agent 列表
+- DevWorkflowTool: 软件开发工作流（代码检查、测试、构建）
+""",
             max_iterations=max_iter
         )
     
@@ -671,8 +684,8 @@ class CLIAgent:
             user_input: 用户输入
         """
         try:
-            from simple_agent.quality.checker import create_checker
-            from simple_agent.quality.evaluator import FeedbackEvaluator
+            from simple_agent.swarm.quality.checker import create_checker
+            from simple_agent.swarm.quality.evaluator import FeedbackEvaluator
 
             print("\n" + "=" * 60)
             print("[质量评估]")
