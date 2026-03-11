@@ -17,6 +17,17 @@ from typing import Optional
 from simple_agent.core.tool import BaseTool, ToolResult
 from simple_agent.core.execution_context import _execution_context
 
+# 集成任务执行模式
+try:
+    from simple_agent.core.task_mode import (
+        get_execution_mode,
+        ExecutionMode,
+        check_and_request_confirmation,
+    )
+    TASK_MODE_ENABLED = True
+except ImportError:
+    TASK_MODE_ENABLED = False
+
 # 集成深度安全防护模块
 try:
     from simple_agent.core.script_security import (
@@ -168,6 +179,12 @@ class BashTool(BaseTool):
                     "type": "boolean",
                     "description": "用户是否已确认危险命令（需要用户明确确认时才为 true）",
                     "default": False
+                },
+                "mode": {
+                    "type": "string",
+                    "enum": ["auto", "review"],
+                    "description": "执行模式：'auto' 自动执行，'review' 用户评审",
+                    "default": "auto"
                 }
             },
             "required": ["command"]
@@ -180,6 +197,7 @@ class BashTool(BaseTool):
         confirmed_by_user: bool = False,
         cwd: Optional[str] = None,
         use_sandbox: bool = True,
+        mode: Optional[str] = None,  # "auto" or "review"
         **kwargs
     ) -> ToolResult:
         """执行 shell 命令
@@ -190,6 +208,7 @@ class BashTool(BaseTool):
             confirmed_by_user: 用户是否已确认危险命令
             cwd: 工作目录（默认使用沙箱目录或 output_dir）
             use_sandbox: 是否使用沙箱目录作为工作目录
+            mode: 执行模式 ("auto" 或 "review")，覆盖全局设置
         """
         try:
             # 安全检查
@@ -205,11 +224,23 @@ class BashTool(BaseTool):
 
             # 需要用户确认的命令
             if need_confirm and not confirmed_by_user:
-                return ToolResult(
-                    success=False,
-                    output="",
-                    error=f"等待确认：{reason}\n\n请向用户展示此命令并获取确认后，设置 confirmed_by_user=true 重新调用。"
-                )
+                # 检查执行模式
+                current_mode = get_execution_mode()
+                if mode == "auto" or (mode is None and current_mode == ExecutionMode.AUTO):
+                    # 自动模式下，直接执行（安全检查已通过）
+                    pass
+                else:
+                    # REVIEW 模式或默认模式，检查是否可以自动批准
+                    should_proceed, error_msg = check_and_request_confirmation(
+                        command,
+                        message=f"检测到需要确认的命令: {reason}"
+                    )
+                    if not should_proceed:
+                        return ToolResult(
+                            success=False,
+                            output="",
+                            error=f"操作被用户拒绝：{error_msg}"
+                        )
 
             # 限制超时时间
             timeout = min(max(timeout, 1), 300)
