@@ -60,52 +60,54 @@ def create_agent(
     base: Optional[Agent] = None,
     # 额外配置
     system_prompt: Optional[str] = None,
+    output_dir: Optional[str] = None,
 ) -> Agent:
     """
     创建 Agent
-    
+
     从资源仓库抽取资源，结合需求创建新 Agent
-    
+
     Args:
         description: Agent 功能描述
         name: Agent 名称（默认从描述提取）
-        
+
         # 资源抽取
         tools: 指定工具名称列表
         tags: 按标签选择工具
         llm: LLM 名称（默认 "default"）
-        
+
         # 继承
         base: 继承的 Agent，继承其工具和 LLM
-        
+
         # 额外配置
         system_prompt: 自定义提示词（默认自动生成）
-    
+        output_dir: 输出目录（默认 None）
+
     Returns:
         Agent 实例
     """
     generator = AgentGenerator()
-    
+
     # 名称
     if not name:
         words = description.split()[:3]
         name = "".join([w.capitalize() for w in words if w]) or "Agent"
-    
+
     # LLM：继承或从仓库抽取
     if base:
         llm_instance = base.llm
     else:
         llm_instance = repo.extract_llm(llm)
-    
+
     # 工具：从仓库抽取
     requirements = {
         "tools": tools or [],
         "tags": tags or [],
         "keywords": [description]
     }
-    
+
     extracted_tools = repo.extract_tools(requirements)
-    
+
     # 继承 base 的工具
     if base:
         inherited = list(base.tool_registry.get_all_tools())
@@ -114,14 +116,14 @@ def create_agent(
         for t in inherited:
             if t.name not in existing_names:
                 extracted_tools.append(t)
-    
+
     # 版本号
     version = generator._next_version(name)
-    
+
     # 提示词
     if not system_prompt:
         system_prompt = generator._generate_prompt(name, description, extracted_tools)
-    
+
     # 创建 Agent
     agent = Agent(
         llm=llm_instance,
@@ -131,10 +133,18 @@ def create_agent(
         version=version,
         description=description
     )
-    
+
+    # 如果指定了 output_dir，设置文件工具的输出目录
+    if output_dir:
+        try:
+            from .tools.file import set_output_dir
+            set_output_dir(output_dir)
+        except ImportError:
+            pass
+
     # 注册到仓库
     repo.register_agent(agent)
-    
+
     return agent
 
 

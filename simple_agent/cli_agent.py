@@ -1035,23 +1035,19 @@ SoftwareDeveloper Agent 会自动：
             else:
                 # 否则跳过保存，避免污染文件系统
                 return None
-        
+
         try:
-            # 创建输出目录
-            if isolate_by_instance and hasattr(self.agent, 'instance_id') and self.agent.instance_id:
-                # 按实例 ID 隔离
-                output_path = os.path.join(output_dir, self.agent.instance_id)
-            else:
-                # 使用任务前缀作为目录名
-                task_prefix = user_input[:20].replace('/', '_').replace('\\', '_').replace(' ', '_')
-                output_path = os.path.join(output_dir, task_prefix)
-            
+            # 直接使用 output_dir 作为输出路径
+            # 注意：output_dir 已由 CLI Coordinator 生成为任务专属路径
+            # 不需要再创建额外的子目录
+            output_path = output_dir
+
             os.makedirs(output_path, exist_ok=True)
-            
+
             # 生成文件名
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             output_file = os.path.join(output_path, f'result_{timestamp}.txt')
-            
+
             # 保存结果
             with open(output_file, 'w', encoding='utf-8') as f:
                 f.write(f"# 任务输入\n{user_input}\n\n")
@@ -1062,7 +1058,7 @@ SoftwareDeveloper Agent 会自动：
 
             # 返回保存的目录路径，用于在 cli.py 中显示
             return output_path
-        
+
         except Exception as e:
             print(f"\n[警告] 保存输出失败：{e}")
             return None

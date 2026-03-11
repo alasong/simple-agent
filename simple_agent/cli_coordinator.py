@@ -6,6 +6,7 @@ CLI Coordinator - CLI 协调层
 2. 会话状态管理
 3. Agent 生命周期管理
 4. 错误处理和重试
+5. 输出目录管理
 
 架构:
 ┌─────────────────────────────────────┐
@@ -29,6 +30,8 @@ CLI Coordinator - CLI 协调层
 """
 
 import os
+import sys
+from datetime import datetime
 from typing import Dict, List, Any, Optional, Callable
 from dataclasses import dataclass, field
 
@@ -39,6 +42,9 @@ from simple_agent.cli_commands import (
     get_agent_commands, get_workflow_commands,
     get_debug_commands, get_task_commands, get_daemon_commands
 )
+
+# 获取输出根目录（避免循环导入，直接使用默认值）
+OUTPUT_ROOT = os.path.abspath('./output')
 
 
 @dataclass
@@ -379,10 +385,10 @@ class CLICoordinator:
     
     def execute(self, user_input: str) -> Any:
         """执行任务或命令
-        
+
         Args:
             user_input: 用户输入
-        
+
         Returns:
             执行结果
         """
@@ -390,30 +396,70 @@ class CLICoordinator:
         if user_input.startswith('/'):
             result = self.process_command(user_input)
             return self.output_manager.format_result(result)
-        
+
         # 普通任务，委托给 CLI Agent
         try:
-            output_dir = self.context.output_dir if self.context.debug_mode else None
-            
+            # 生成任务专属输出目录: output/<task_name>+<timestamp>/
+            output_dir = self._generate_task_output_dir(user_input)
+
             result_tuple = self.context.cli_agent.execute(
                 user_input,
                 verbose=True,
                 output_dir=output_dir,
                 isolate_by_instance=self.context.isolate_mode
             )
-            
+
             # 保存输出
             if isinstance(result_tuple, tuple) and len(result_tuple) == 2:
                 result, saved_path = result_tuple
             else:
                 result = result_tuple
                 saved_path = None
-            
+
             return result
-        
+
         except Exception as e:
             import traceback
             return f"[错误] 任务执行失败：{e}\n{traceback.format_exc()}"
+
+    def _generate_task_output_dir(self, user_input: str) -> str:
+        """生成任务专属输出目录
+
+        Args:
+            user_input: 用户任务描述
+
+        Returns:
+            输出目录路径: output/<task_name>+<timestamp>/
+        """
+        # 从配置获取输出根目录（默认 ./output）
+        output_root = OUTPUT_ROOT
+
+        # 从任务描述中提取简要任务名
+        import re
+        import hashlib
+
+        # 尝试提取英文单词
+        words = re.findall(r'[a-zA-Z0-9]+', user_input)
+
+        if words:
+            # 优先使用前几个英文单词作为任务名
+            task_name = '_'.join(words[:min(3, len(words))])
+        else:
+            # 如果没有英文单词，使用摘要（任务描述的 hash 值前缀）
+            hash_val = hashlib.md5(user_input.encode('utf-8')).hexdigest()[:8]
+            task_name = f"task_{hash_val}"
+
+        # 转小写（更通用的文件系统兼容）
+        task_name = task_name.lower()
+        # 限制长度
+        if len(task_name) > 30:
+            task_name = task_name[:30]
+
+        # 生成时间戳
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+        # 组合：output/<task_name>_<timestamp>/
+        return os.path.join(output_root, f"{task_name}_{timestamp}")
     
     def get_current_state(self) -> Dict[str, Any]:
         """获取当前状态"""

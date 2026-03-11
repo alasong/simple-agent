@@ -38,3 +38,13 @@ logs/
 # 系统文件
 .DS_Store
 Thumbs.db
+
+# Node.js 项目文件（可能在开发过程中生成）
+node_modules/
+package-lock.json
+package.json
+tsconfig.json
+src/
+
+# Git worktrees - 用于多项目并行开发
+.worktrees/

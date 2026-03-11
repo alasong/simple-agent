@@ -150,7 +150,13 @@ class InvokeAgentTool(BaseTool):
                 print(f"\n[InvokeAgent] 调用 {target_agent} Agent...")
                 print(f"[InvokeAgent] 任务：{target_task}")
 
-            result = agent.run(target_task, verbose=verbose)
+            # 获取 output_dir 并传递给被调用的 Agent
+            output_dir = get_output_dir()
+            run_kwargs = {"verbose": verbose}
+            if output_dir:
+                run_kwargs["output_dir"] = output_dir
+
+            result = agent.run(target_task, **run_kwargs)
 
             if verbose:
                 print(f"\n[InvokeAgent] {target_agent} Agent 完成")
