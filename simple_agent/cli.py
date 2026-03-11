@@ -289,6 +289,8 @@ def main():
     parser.add_argument("--debug", action="store_true", help="调试模式：保存输出到文件")
     parser.add_argument("-o", "--output", help="输出目录")
     parser.add_argument("--isolate", action="store_true", help="按实例 ID 隔离输出目录")
+    parser.add_argument("--mode", choices=["auto", "review"], default="auto",
+                       help="执行模式：auto(自动) 或 review(用户评审)")
 
     args = parser.parse_args()
 
@@ -307,7 +309,9 @@ def main():
         coordinator.context.debug_mode = True
     if args.isolate:
         coordinator.context.isolate_mode = True
-    
+    # 设置执行模式
+    coordinator.context.execution_mode = args.mode
+
     # 单次任务模式
     if args.input or args.task:
         task = args.task or args.input

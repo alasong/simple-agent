@@ -10,6 +10,7 @@ CLI 命令处理模块
 - debug_cmds: 调试命令
 - task_cmds: 任务管理命令
 - daemon_cmds: 守护进程命令
+- mode_cmds: 执行模式管理命令
 """
 
 from typing import Dict, Type, List, Any, Optional
@@ -138,6 +139,7 @@ def get_all_commands() -> List[CommandHandler]:
     commands.extend(get_debug_commands())
     commands.extend(get_task_commands())
     commands.extend(get_daemon_commands())
+    commands.extend(get_mode_commands())
     try:
         commands.extend(get_tracking_commands())  # 新增：任务追踪命令
     except ImportError:
@@ -177,6 +179,16 @@ def get_tracking_commands() -> List[CommandHandler]:
     ]
 
 
+def get_mode_commands() -> List[CommandHandler]:
+    """获取执行模式管理命令"""
+    from .mode_cmds import ModeCommand, ModeAutoCommand, ModeReviewCommand
+    return [
+        ModeCommand(),
+        ModeAutoCommand(),
+        ModeReviewCommand(),
+    ]
+
+
 __all__ = [
     'CommandResult',
     'CommandHandler',
@@ -186,5 +198,6 @@ __all__ = [
     'get_workflow_commands',
     'get_debug_commands',
     'get_task_commands',
+    'get_mode_commands',
     'get_tracking_commands',  # 新增
 ]

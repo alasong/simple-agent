@@ -7,6 +7,11 @@ CLI Coordinator - CLI 协调层
 3. Agent 生命周期管理
 4. 错误处理和重试
 5. 输出目录管理
+6. 执行模式管理（自动/评审）
+
+执行模式:
+- auto: 完全自动模式，所有操作自动执行
+- review: 用户评审模式，关键节点需要确认
 
 架构:
 ┌─────────────────────────────────────┐
@@ -43,6 +48,13 @@ from simple_agent.cli_commands import (
     get_debug_commands, get_task_commands, get_daemon_commands
 )
 
+# 任务执行模式
+try:
+    from simple_agent.core.task_mode import ExecutionMode, set_execution_mode
+    TASK_MODE_ENABLED = True
+except ImportError:
+    TASK_MODE_ENABLED = False
+
 # 获取输出根目录（避免循环导入，直接使用默认值）
 OUTPUT_ROOT = os.path.abspath('./output')
 
@@ -60,11 +72,13 @@ class CLIContext:
     enhanced_agent: Optional[Any] = None
     skill_library: Optional[Any] = None
     custom_data: Dict[str, Any] = field(default_factory=dict)
-    
+    # 任务执行模式：'auto' 或 'review'
+    execution_mode: str = "auto"
+
     def get(self, key: str, default: Any = None) -> Any:
         """获取上下文数据"""
         return getattr(self, key, default)
-    
+
     def set(self, key: str, value: Any):
         """设置上下文数据"""
         setattr(self, key, value)
@@ -401,6 +415,11 @@ class CLICoordinator:
         try:
             # 生成任务专属输出目录: output/<task_name>+<timestamp>/
             output_dir = self._generate_task_output_dir(user_input)
+
+            # 设置执行模式
+            if TASK_MODE_ENABLED:
+                mode = self.context.execution_mode
+                set_execution_mode(ExecutionMode.AUTO if mode == "auto" else ExecutionMode.REVIEW)
 
             result_tuple = self.context.cli_agent.execute(
                 user_input,
