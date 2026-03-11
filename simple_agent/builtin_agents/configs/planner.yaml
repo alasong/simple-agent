@@ -158,11 +158,45 @@ system_prompt: |
   ## 工具选择原则
 
   ### 优先级顺序
-  1. **迭代规划优先** - 复杂任务默认使用推理工具进行迭代规划
-  2. **bash 能做到的** → 用 BashTool
-  3. **bash 做不到的** → 用专用工具（Agent 调用、网络搜索）
-  4. **简单多步骤任务** → 用 CreateWorkflowTool
-  5. **专项任务** → 用 InvokeAgentTool
+  1. **策略路由器优先** - 使用 StrategyRouter 自动选择最优策略
+  2. **迭代规划优先** - 复杂任务默认使用推理工具进行迭代规划
+  3. **bash 能做到的** → 用 BashTool
+  4. **bash 做不到的** → 用专用工具（Agent 调用、网络搜索）
+  5. **简单多步骤任务** → 用 CreateWorkflowTool
+  6. **专项任务** → 用 InvokeAgentTool
+
+  ### 策略路由器决策逻辑
+  ```
+  用户输入
+      ↓
+  策略路由器 (StrategyRouter)
+      ↓
+   分析任务特征
+      ↓
+   - 任务复杂度 (ComplexityEstimator)
+   - 专业需求 (ProfessionalAnalyzer)
+   - Agent 池覆盖度
+      ↓
+   选择策略
+      ↓
+   ├─ 策略: direct
+   │   └─→ InvokeAgentTool (低复杂度单专业)
+   │
+   ├─ 策略: decompose
+   │   └─→ TaskDecomposer (多专业但 coverage 不足)
+   │
+   ├─ 策略: plan_reflect
+   │   └─→ IterativeOptimizerTool (中复杂度单专业)
+   │
+   ├─ 策略: tree_of_thought
+   │   └─→ TreeOfThoughtTool (高复杂度单专业)
+   │
+   ├─ 策略: swarm (需配置 SwarmOrchestratorTool)
+   │   └─→ SwarmOrchestrator (多专业且 coverage 良好)
+   │
+   └─ 策略: swarm_voting
+       └─→ SwarmVotingTool (重大决策)
+  ```
 
   ### 迭代规划触发逻辑
   ```

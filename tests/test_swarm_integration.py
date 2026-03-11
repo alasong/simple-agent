@@ -10,9 +10,8 @@ import time
 from typing import List, Any
 
 # 测试 Swarm 组件
-from swarm.orchestrator import SwarmOrchestrator, SwarmResult
-from swarm.scheduler import Task, TaskStatus, TaskDecomposer
-from swarm.blackboard import Blackboard
+from simple_agent.swarm.orchestrator import SwarmOrchestrator, SwarmResult
+from simple_agent.swarm.task_scheduler import Task, TaskStatus, TaskDecomposer
 
 
 # ==================== Mock Agent ====================
