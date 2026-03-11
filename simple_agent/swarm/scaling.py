@@ -319,8 +319,8 @@ class AutoScalingOrchestrator:
 # 使用示例
 async def demo_auto_scaling():
     """演示自动扩展"""
-    from swarm import SwarmOrchestrator
-    from simple_agent.swarm.scheduler import Task
+    from simple_agent.swarm.orchestrator import SwarmOrchestrator
+    from simple_agent.swarm.task_scheduler import Task
     
     # 模拟 Agent 类
     class MockAgent:

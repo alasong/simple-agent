@@ -259,7 +259,8 @@ class SwarmOrchestrator:
             if self._decomposer:
                 tasks = await self._decomposer.decompose(complex_task)
             else:
-                from simple_agent.swarm.scheduler import Task
+                # Fallback: create a single task without decomposition
+                from simple_agent.swarm.task_scheduler import Task
                 tasks = [Task(id="1", description=complex_task, required_skills=[])]
 
             if self._rich_output:
