@@ -22,6 +22,12 @@ from simple_agent.core.agent import Agent
 from simple_agent.core.factory import create_agent, AgentGenerator
 from .workflow_types import ResultType, StepResult, StepType
 
+# 修复导入：debug 和 reflection_learning 在 simple_agent.core 中
+try:
+    from simple_agent.core.debug import tracker
+except ImportError:
+    tracker = None
+
 
 @dataclass
 class WorkflowStep:
@@ -93,7 +99,7 @@ class WorkflowStep:
 
         # 记录步骤结束（用于反思学习）
         try:
-            from .reflection_learning import get_learning_coordinator
+            from simple_agent.core.resilience.reflection import get_learning_coordinator
             coordinator = get_learning_coordinator()
             if coordinator.recorder._current_record:
                 coordinator.record_step_end(
@@ -388,11 +394,21 @@ class Workflow:
             执行上下文（包含所有步骤的输出）
         """
         import time
-        from .debug import tracker
+
+        # 修复导入：debug 和 reflection_learning 在 simple_agent.core 中
+        try:
+            from simple_agent.core.debug import tracker
+        except ImportError:
+            tracker = None
+
+        try:
+            from simple_agent.core.resilience.reflection import get_learning_coordinator
+        except ImportError:
+            get_learning_coordinator = None
 
         # 调试跟踪
         workflow_record = None
-        if debug and tracker.enabled:
+        if debug and tracker and tracker.enabled:
             workflow_record = tracker.start_workflow_execution(
                 self.name, self.description, initial_input
             )
@@ -400,9 +416,8 @@ class Workflow:
         # 反思学习记录
         reflection_enabled = enable_reflection
         record_id = None
-        if reflection_enabled:
+        if reflection_enabled and get_learning_coordinator:
             try:
-                from .reflection_learning import get_learning_coordinator
                 coordinator = get_learning_coordinator()
                 record_id = coordinator.start(self.name, initial_input)
             except Exception:
@@ -471,7 +486,7 @@ class Workflow:
             step_end = time.time()
             
             # 记录步骤执行
-            if debug and tracker.enabled and workflow_record:
+            if debug and tracker and tracker.enabled and workflow_record:
                 step_input = str(self.context.get("_last_output", ""))
                 step_output = str(self.context.get(step.output_key, ""))
                 tracker.add_workflow_step(
@@ -500,7 +515,7 @@ class Workflow:
             print(f"{'#'*50}")
         
         # 结束调试跟踪
-        if debug and tracker.enabled and workflow_record:
+        if debug and tracker and tracker.enabled and workflow_record:
             tracker.end_workflow_execution(
                 workflow_record,
                 final_output,
@@ -508,9 +523,8 @@ class Workflow:
             )
 
         # 结束反思学习记录
-        if reflection_enabled:
+        if reflection_enabled and get_learning_coordinator:
             try:
-                from .reflection_learning import get_learning_coordinator
                 coordinator = get_learning_coordinator()
                 coordinator.finish(success=True, final_output=final_output)
             except Exception:

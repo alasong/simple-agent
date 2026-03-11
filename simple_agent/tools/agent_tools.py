@@ -240,10 +240,14 @@ class CreateWorkflowTool(BaseTool):
                     # 创建并行工作流
                     workflow = create_parallel_workflow(max_concurrent=5, default_timeout=300.0)
                     for i, step_config in enumerate(steps):
+                        agent_type = step_config.get("agent_type", "agent")
                         try:
-                            agent = get_agent(step_config["agent_type"])
-                        except (ImportError, ValueError):
-                            agent = create_agent(description=step_config["description"], tags=[])
+                            agent = get_agent(agent_type)
+                        except (ImportError, ValueError, Exception) as e:
+                            # Agent 类型不存在或创建失败，使用 create_agent 创建通用 Agent
+                            if verbose:
+                                print(f"[CreateWorkflow] 警告：Agent '{agent_type}' 创建失败: {e}，使用通用 Agent")
+                            agent = create_agent(description=step_config.get("description", f"步骤{i+1}"), tags=[])
 
                         workflow.add_task(
                             name=step_config["name"],
@@ -270,10 +274,14 @@ class CreateWorkflowTool(BaseTool):
                     # 创建顺序工作流
                     workflow = Workflow(name="动态工作流", description=task_description)
                     for i, step_config in enumerate(steps):
+                        agent_type = step_config.get("agent_type", "agent")
                         try:
-                            agent = get_agent(step_config["agent_type"])
-                        except (ImportError, ValueError):
-                            agent = create_agent(description=step_config["description"], tags=[])
+                            agent = get_agent(agent_type)
+                        except (ImportError, ValueError, Exception) as e:
+                            # Agent 类型不存在或创建失败，使用 create_agent 创建通用 Agent
+                            if verbose:
+                                print(f"[CreateWorkflow] 警告：Agent '{agent_type}' 创建失败: {e}，使用通用 Agent")
+                            agent = create_agent(description=step_config.get("description", f"步骤{i+1}"), tags=[])
 
                         workflow.add_step(
                             name=step_config["name"],

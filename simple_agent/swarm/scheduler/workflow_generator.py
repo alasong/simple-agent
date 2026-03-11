@@ -146,7 +146,8 @@ class WorkflowGenerator:
         Returns:
             Workflow 实例
         """
-        from .resource import repo
+        # 修复导入：ResourceRepository 在 simple_agent.core.resource 中
+        from simple_agent.core.resource import repo
 
         # 获取 LLM
         llm = repo.extract_llm()
