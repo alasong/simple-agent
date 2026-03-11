@@ -57,12 +57,12 @@ class ToolRegistry:
         # 是否已扫描
         self._discovered = False
 
-    def discover_tools(self, package: str = "tools") -> int:
+    def discover_tools(self, package: str = "simple_agent.tools") -> int:
         """
         自动发现工具包中的所有工具类
 
         Args:
-            package: 工具包名称，默认 "tools"
+            package: 工具包名称，默认 "simple_agent.tools"
 
         Returns:
             发现的工具数量
@@ -74,7 +74,7 @@ class ToolRegistry:
 
         try:
             # 获取包路径
-            pkg_path = Path(__file__).parent.parent / package
+            pkg_path = Path(__file__).parent.parent / package.split('.')[-1]
 
             if not pkg_path.exists():
                 logger.warning(f"工具目录不存在：{pkg_path}")
@@ -159,25 +159,25 @@ class ToolRegistry:
         # 可能的模块名映射
         name_lower = name.lower()
 
-        # 常见工具模块映射
+        # 常见工具模块映射（使用完整包路径 simple_agent.tools）
         module_mappings = {
-            "bashtool": "tools.bash_tool",
-            "readfiletool": "tools.file",
-            "writefiletool": "tools.file",
-            "websearchtool": "tools.web_search_tool",
-            "httptool": "tools.http_tool",
-            "invokeagenttool": "tools.agent_tools",
-            "createworkflowtool": "tools.agent_tools",
-            "listagentstool": "tools.agent_tools",
-            "supplementtool": "tools.supplement",
-            "explainreasontool": "tools.supplement",
+            "bashtool": "simple_agent.tools.bash_tool",
+            "readfiletool": "simple_agent.tools.file",
+            "writefiletool": "simple_agent.tools.file",
+            "websearchtool": "simple_agent.tools.web_search_tool",
+            "httptool": "simple_agent.tools.http_tool",
+            "invokeagenttool": "simple_agent.tools.agent_tools",
+            "createworkflowtool": "simple_agent.tools.agent_tools",
+            "listagentstool": "simple_agent.tools.agent_tools",
+            "supplementtool": "simple_agent.tools.supplement",
+            "explainreasontool": "simple_agent.tools.supplement",
             # 推理工具
-            "treeofthoughttool": "tools.reasoning_tools_wrappers",
-            "iterativeoptimizertool": "tools.reasoning_tools_wrappers",
-            "swarmvotingtool": "tools.reasoning_tools_wrappers",
-            "multipathoptimizertool": "tools.reasoning_tools_wrappers",
+            "treeofthoughttool": "simple_agent.tools.reasoning_tools_wrappers",
+            "iterativeoptimizertool": "simple_agent.tools.reasoning_tools_wrappers",
+            "swarmvotingtool": "simple_agent.tools.reasoning_tools_wrappers",
+            "multipathoptimizertool": "simple_agent.tools.reasoning_tools_wrappers",
             # 数据工具
-            "stockmarkettool": "tools.stock_market_tool",
+            "stockmarkettool": "simple_agent.tools.stock_market_tool",
         }
 
         module_name = module_mappings.get(name_lower)

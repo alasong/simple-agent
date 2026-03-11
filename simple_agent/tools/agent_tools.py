@@ -193,8 +193,9 @@ class CreateWorkflowTool(BaseTool):
     def execute(self, task_description: str, steps: Optional[list] = None, parallel: bool = True, **kwargs) -> ToolResult:
         """创建并执行工作流"""
         try:
-            from simple_agent.core.workflow import Workflow, ParallelWorkflow, generate_workflow, create_parallel_workflow
-            from simple_agent.core.factory import create_agent
+            # 修复导入路径
+            from simple_agent.swarm.scheduler.workflow import Workflow, generate_workflow
+            from simple_agent.swarm.scheduler.workflow_parallel import ParallelWorkflow, create_parallel_workflow
             from simple_agent.core.agent_manager import get_agent
 
             verbose = get_verbose()

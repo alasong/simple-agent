@@ -62,6 +62,27 @@ from .tools import (
     CodeReviewTool
 )
 
+# 注册开发工具到资源仓库（供 Agent 使用）
+try:
+    from simple_agent.core.resource import repo
+
+    # 注册 GitWorktreeTool
+    repo.register_tool(GitWorktreeTool, tags=["dev", "git"], description="Git Worktree 管理")
+
+    # 注册 DevEnvironmentTool
+    repo.register_tool(DevEnvironmentTool, tags=["dev", "environment"], description="开发环境配置")
+
+    # 注册 DevWorkflowTool
+    repo.register_tool(DevWorkflowTool, tags=["dev", "workflow"], description="开发流程自动化")
+
+    # 注册 CodeReviewTool
+    repo.register_tool(CodeReviewTool, tags=["dev", "review"], description="代码审查")
+
+except Exception as e:
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.warning(f"注册开发工具失败：{e}")
+
 __all__ = [
     # Git Worktree
     "GitWorktreeManager",

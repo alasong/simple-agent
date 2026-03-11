@@ -23,6 +23,12 @@ CONFIG_DIR = Path(__file__).parent / "configs"
 # 缓存已加载的 agent 配置
 _agent_configs: Dict[str, dict] = {}
 
+# 初始化：导入开发工具模块以注册工具到资源仓库
+try:
+    from simple_agent.core import dev as _dev_import  # noqa: F401
+except ImportError:
+    pass  # 开发工具模块可选，导入失败不影响其他功能
+
 
 def _load_agent_config(agent_type: str) -> dict:
     """
@@ -58,20 +64,20 @@ def _load_agent_config(agent_type: str) -> dict:
 def create_builtin_agent(agent_type: str, llm: Optional[OpenAILLM] = None) -> Agent:
     """
     创建 builtin agent（从配置文件加载）
-    
+
     Args:
         agent_type: agent 类型（developer, reviewer, tester 等）
         llm: LLM 实例（默认使用 OpenAILLM）
-    
+
     Returns:
         Agent 实例
     """
     # 加载配置
     config = _load_agent_config(agent_type)
-    
+
     # 从资源仓库获取工具
     from simple_agent.core.resource import repo
-    
+
     tools = []
     for tool_name in config.get("tools", []):
         # 使用 get_tool_instance 支持按需加载
@@ -80,13 +86,13 @@ def create_builtin_agent(agent_type: str, llm: Optional[OpenAILLM] = None) -> Ag
             tools.append(tool)
         else:
             print(f"[Warning] 未找到工具：{tool_name}")
-    
+
     # 创建 Agent
     # 从统一配置加载默认 max_iterations
     from simple_agent.core.config_loader import get_config
     _config = get_config()
     default_max_iter = _config.get('agent.max_iterations', 10)
-    
+
     agent = Agent(
         llm=llm or OpenAILLM(),
         tools=tools,
@@ -96,7 +102,7 @@ def create_builtin_agent(agent_type: str, llm: Optional[OpenAILLM] = None) -> Ag
         description=config.get("description", ""),
         max_iterations=config.get("max_iterations", default_max_iter)
     )
-    
+
     return agent
 
 
