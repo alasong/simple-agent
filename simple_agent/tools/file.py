@@ -3,6 +3,14 @@
 
 标签：file, io
 
+沙箱路径支持：
+- output:/ - 输出目录（最终产物）
+- sandbox:/ - 沙箱环境（代码、配置）
+- temp:/ - 临时文件
+- cache:/ - 缓存文件
+- logs:/ - 日志文件
+- input:/ - 输入文件
+
 安全特性：
 - 路径验证：防止路径遍历攻击
 - 强制输出到 output_dir 目录（如果指定）
@@ -10,15 +18,12 @@
 """
 
 import os
-import threading
 from simple_agent.core import tool, BaseTool, ToolResult
+from simple_agent.core.execution_context import _execution_context
 
 
 # 安全工作目录（默认为当前工作目录）
 SAFE_WORKSPACE = os.path.abspath(os.environ.get('SAFE_WORKSPACE', '.'))
-
-# 全局执行上下文（线程本地存储）
-_execution_context = threading.local()
 
 
 def set_output_dir(output_dir: str):
@@ -29,6 +34,16 @@ def set_output_dir(output_dir: str):
 def get_output_dir() -> str:
     """获取全局输出目录"""
     return getattr(_execution_context, 'output_dir', None)
+
+
+def set_sandbox_dir(sandbox_dir: str):
+    """设置沙箱目录"""
+    _execution_context.sandbox_dir = os.path.abspath(sandbox_dir)
+
+
+def get_sandbox_dir() -> str:
+    """获取沙箱目录"""
+    return getattr(_execution_context, 'sandbox_dir', None)
 
 
 def validate_path(file_path: str, allow_read_outside: bool = False) -> tuple:
@@ -63,6 +78,56 @@ def validate_path(file_path: str, allow_read_outside: bool = False) -> tuple:
         return False, f"文件路径必须在工作目录 {SAFE_WORKSPACE} 内"
 
     return True, ""
+
+
+def _resolve_sandbox_path(file_path: str, output_dir: str) -> tuple:
+    """
+    解析沙箱路径（支持特殊前缀）
+
+    支持的特殊前缀：
+    - output:/ - 输出目录（最终产物）
+    - sandbox:/ - 沙箱环境（代码、配置）
+    - temp:/ - 临时文件
+    - cache:/ - 缓存文件
+    - logs:/ - 日志文件
+    - input:/ - 输入文件
+
+    Returns:
+        (resolved_path, error_message)
+    """
+    # 检查沙箱目录
+    sandbox_dir = get_sandbox_dir()
+    if sandbox_dir:
+        prefix_map = {
+            "output:/": os.path.join(sandbox_dir, "output"),
+            "sandbox:/": os.path.join(sandbox_dir, "sandbox"),
+            "temp:/": os.path.join(sandbox_dir, "process", "temp"),
+            "cache:/": os.path.join(sandbox_dir, "process", "cache"),
+            "logs:/": os.path.join(sandbox_dir, "process", "logs"),
+            "input:/": os.path.join(sandbox_dir, "input"),
+        }
+
+        for prefix, target_dir in prefix_map.items():
+            if file_path.startswith(prefix):
+                rel_path = file_path[len(prefix):]
+                # 防止路径遍历
+                if '..' in rel_path:
+                    return None, f"禁止路径遍历: {file_path}"
+                resolved = os.path.join(target_dir, rel_path)
+                return os.path.abspath(resolved), None
+
+    # 默认输出到 output_dir 或当前目录
+    if output_dir:
+        filename = os.path.basename(file_path)
+        dir_part = os.path.dirname(file_path)
+        if dir_part and dir_part != '.':
+            safe_dir = os.path.join(output_dir, dir_part)
+            os.makedirs(safe_dir, exist_ok=True)
+            return os.path.abspath(os.path.join(safe_dir, filename)), None
+        else:
+            return os.path.abspath(os.path.join(output_dir, filename)), None
+
+    return os.path.abspath(file_path), None
 
 
 @tool(tags=["file", "io"], description="读取文件内容")
@@ -135,20 +200,25 @@ class WriteFileTool(BaseTool):
 
     def execute(self, file_path: str, content: str) -> ToolResult:
         """
-        写入文件（强制输出到 output_dir）
+        写入文件（支持沙箱路径）
 
         Args:
-            file_path: 文件路径（相对于 output_dir 或工作目录）
+            file_path: 文件路径（可以使用特殊前缀：output:/, sandbox:/, temp:/, cache:/, logs:/, input:/）
             content: 要写入的内容
         """
         # 获取 output_dir（如果 Agent.run 传入了 output_dir）
         output_dir = get_output_dir()
+        sandbox_dir = get_sandbox_dir()
 
-        # 如果指定了 output_dir，强制将文件写入该目录
-        if output_dir:
-            # 获取文件名（去除可能的路径）
+        # 如果指定了沙箱目录，使用沙箱路径解析
+        if sandbox_dir:
+            resolved_path, error = _resolve_sandbox_path(file_path, output_dir)
+            if error:
+                return ToolResult(success=False, output="", error=error)
+            file_path = resolved_path
+        elif output_dir:
+            # 旧模式：强制将文件写入 output_dir
             filename = os.path.basename(file_path)
-            # 如果原路径包含子目录，将其作为 output_dir 的子目录
             dir_part = os.path.dirname(file_path)
             if dir_part and dir_part != '.':
                 # 将子目录添加到 output_dir 下
@@ -157,6 +227,9 @@ class WriteFileTool(BaseTool):
                 file_path = os.path.join(safe_dir, filename)
             else:
                 file_path = os.path.join(output_dir, filename)
+        else:
+            # 没有 output_dir，使用原始路径（但需要验证）
+            file_path = os.path.abspath(file_path)
 
         # 限制写入路径必须在 SAFE_WORKSPACE 内（最终写入位置）
         abs_path = os.path.abspath(file_path)

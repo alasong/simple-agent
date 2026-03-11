@@ -251,6 +251,7 @@ system_prompt: |
 
   **记住**：用户希望你直接做事，而不是提问或给建议。基于常识推断，立即行动。
 tools:
+  - BashTool
   - InvokeAgentTool
   - CreateWorkflowTool
   - ListAgentsTool

@@ -12,8 +12,10 @@ BashTool - Shell 命令执行工具
 
 import subprocess
 import shlex
+import os
 from typing import Optional
 from simple_agent.core.tool import BaseTool, ToolResult
+from simple_agent.core.execution_context import _execution_context
 
 # 集成深度安全防护模块
 try:
@@ -131,6 +133,10 @@ class BashTool(BaseTool):
 - Git 操作：git status, git log
 - 包管理：pip list, npm list
 
+沙箱支持:
+- 命令在沙箱目录中执行（如果启用）
+- 沙箱目录结构：output/, process/temp/, process/cache/, sandbox/
+
 安全策略:
 - 安全的只读命令（ls, cat, git status 等）可直接执行
 - 危险命令（rm, kill, shutdown 等）需要用户确认
@@ -172,6 +178,8 @@ class BashTool(BaseTool):
         command: str,
         timeout: int = 60,
         confirmed_by_user: bool = False,
+        cwd: Optional[str] = None,
+        use_sandbox: bool = True,
         **kwargs
     ) -> ToolResult:
         """执行 shell 命令
@@ -180,6 +188,8 @@ class BashTool(BaseTool):
             command: 要执行的命令
             timeout: 超时时间
             confirmed_by_user: 用户是否已确认危险命令
+            cwd: 工作目录（默认使用沙箱目录或 output_dir）
+            use_sandbox: 是否使用沙箱目录作为工作目录
         """
         try:
             # 安全检查
@@ -204,6 +214,24 @@ class BashTool(BaseTool):
             # 限制超时时间
             timeout = min(max(timeout, 1), 300)
 
+            # 默认工作目录：优先使用沙箱目录
+            if cwd is None:
+                # 尝试从执行上下文获取沙箱目录
+                sandbox_dir = getattr(_execution_context, 'sandbox_dir', None)
+                if sandbox_dir and use_sandbox:
+                    cwd = sandbox_dir
+                else:
+                    # 回退到 output_dir
+                    cwd = getattr(_execution_context, 'output_dir', None)
+                    if cwd is None:
+                        cwd = kwargs.get("cwd", '.')
+
+            # 确保工作目录存在
+            try:
+                os.makedirs(cwd, exist_ok=True)
+            except Exception:
+                pass  # 如果无法创建目录，继续使用默认目录
+
             # 执行命令
             result = subprocess.run(
                 command,
@@ -211,7 +239,7 @@ class BashTool(BaseTool):
                 capture_output=True,
                 text=True,
                 timeout=timeout,
-                cwd=kwargs.get("cwd")  # 支持指定工作目录
+                cwd=cwd
             )
 
             # 构建输出

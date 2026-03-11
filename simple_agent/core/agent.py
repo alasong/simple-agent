@@ -6,6 +6,13 @@ Agent 是可部署的实体，支持：
 - 持久化存储
 - 独立运行
 - 克隆创建多个副本
+- 智能错误恢复
+- 沙箱执行环境
+
+沙箱支持：
+- 每个任务在一个独立的沙箱目录中执行
+- 目录结构：input/, process/temp/, process/cache/, output/, sandbox/
+- 任务清单：manifest.json 记录元数据
 """
 
 import json
@@ -18,6 +25,7 @@ from datetime import datetime
 from .tool import BaseTool, ToolResult, ToolRegistry
 from .memory import Memory
 from .llm import LLM, OpenAILLM, LLMInterface
+from .sandbox import sandbox_manager, Sandbox
 
 
 @dataclass
@@ -132,10 +140,11 @@ class Agent:
         verbose: bool = True,
         debug: bool = False,
         output_dir: Optional[str] = None,
-        enable_self_healing: bool = True
+        enable_self_healing: bool = True,
+        enable_sandbox: bool = True
     ) -> str:
         """
-        主循环 - 带智能错误恢复和自愈能力
+        主循环 - 带智能错误恢复和自愈能力，支持沙箱执行环境
 
         Args:
             user_input: 用户输入
@@ -143,6 +152,7 @@ class Agent:
             debug: 是否启用调试跟踪
             output_dir: 输出目录（用于工具执行时保存文件）
             enable_self_healing: 是否启用自愈能力
+            enable_sandbox: 是否启用沙箱模式
 
         Returns:
             执行结果
@@ -164,11 +174,52 @@ class Agent:
         except ImportError:
             pass
 
-        # 设置文件工具的输出目录（优先使用 file.py 中的定义）
+        # 设置文件工具的输出目录
         try:
             from simple_agent.tools.file import set_output_dir as set_file_output_dir
             if output_dir:
                 set_file_output_dir(output_dir)
+        except ImportError:
+            pass
+
+        # 设置沙箱目录
+        sandbox = None
+        if enable_sandbox:
+            task_id = f"task_{int(time.time() * 1000)}"
+            sandbox = sandbox_manager.create_sandbox(task_id)
+            sandbox.manifest.user_input = user_input
+            sandbox.manifest.created_at = datetime.now().isoformat()
+
+            # 设置沙箱目录到执行上下文
+            try:
+                from simple_agent.core.execution_context import set_sandbox_dir
+                set_sandbox_dir(str(sandbox.root))
+            except ImportError:
+                pass
+
+            # 设置文件工具的沙箱目录
+            try:
+                from simple_agent.tools.file import set_sandbox_dir as set_file_sandbox_dir
+                set_file_sandbox_dir(str(sandbox.root))
+            except ImportError:
+                pass
+
+            # 设置 BashTool 的 sandbox_dir
+            try:
+                from simple_agent.tools.bash_tool import _execution_context
+                _execution_context.sandbox_dir = str(sandbox.root)
+            except ImportError:
+                pass
+
+            # 如果没有指定 output_dir，使用沙箱的 output 目录
+            if not output_dir:
+                output_dir = str(sandbox.output_dir)
+
+        # 设置 BashTool 的输出目录（线程本地存储）
+        try:
+            from simple_agent.tools.bash_tool import _execution_context
+            if output_dir:
+                _execution_context.output_dir = os.path.abspath(output_dir)
         except ImportError:
             pass
 
@@ -249,6 +300,19 @@ class Agent:
                         arguments_with_confirm["confirmed_by_user"] = True
                         result = self._execute_tool(tool_name, arguments_with_confirm)
 
+                        # 如果重试成功，使用成功的结果
+                        if result.success:
+                            if verbose:
+                                print(f"[提示] 工具 {tool_name} 重试成功")
+                            self.memory.add_tool_result(
+                                tool_call_id=tool_id,
+                                name=tool_name,
+                                content=result.output
+                            )
+                            continue  # 继续下一个工具
+                        # 如果重试失败，使用实际错误（而不是"等待确认"）
+                        # 这样 LLM 知道真正的失败原因
+
                     # 失败时触发智能恢复
                     if not result.success:
                         if verbose:
@@ -304,6 +368,12 @@ class Agent:
                             tool_calls=0, iterations=iteration
                         )
 
+                    # 保存沙箱清单（如果启用）
+                    if sandbox:
+                        sandbox.manifest.status = "failed"
+                        sandbox.manifest.completed_at = datetime.now().isoformat()
+                        sandbox.manifest.save(str(sandbox.root / "manifest.json"))
+
                     return error_msg
 
         result_text = f"达到最大迭代次数 ({self.max_iterations})，任务可能未完成"
@@ -313,6 +383,12 @@ class Agent:
                 debug_record, result_text, success=True,
                 tool_calls=0, iterations=iteration
             )
+
+        # 保存沙箱清单（如果启用）
+        if sandbox:
+            sandbox.manifest.status = "success"
+            sandbox.manifest.completed_at = datetime.now().isoformat()
+            sandbox.manifest.save(str(sandbox.root / "manifest.json"))
 
         return result_text
 
