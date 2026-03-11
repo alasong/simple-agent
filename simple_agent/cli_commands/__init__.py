@@ -138,6 +138,10 @@ def get_all_commands() -> List[CommandHandler]:
     commands.extend(get_debug_commands())
     commands.extend(get_task_commands())
     commands.extend(get_daemon_commands())
+    try:
+        commands.extend(get_tracking_commands())  # 新增：任务追踪命令
+    except ImportError:
+        pass  # 如果导入失败，继续使用其他命令
     return commands
 
 
@@ -157,6 +161,22 @@ def get_daemon_commands() -> List[CommandHandler]:
     ]
 
 
+def get_tracking_commands() -> List[CommandHandler]:
+    """获取任务追踪命令"""
+    from .track_cmds import (
+        TaskStatusCommand, TaskRunningCommand, TaskListCommand,
+        SessionContinueCommand, SessionHistoryCommand, SessionEndCommand
+    )
+    return [
+        TaskStatusCommand(),
+        TaskRunningCommand(),
+        TaskListCommand(),
+        SessionContinueCommand(),
+        SessionHistoryCommand(),
+        SessionEndCommand(),
+    ]
+
+
 __all__ = [
     'CommandResult',
     'CommandHandler',
@@ -166,4 +186,5 @@ __all__ = [
     'get_workflow_commands',
     'get_debug_commands',
     'get_task_commands',
+    'get_tracking_commands',  # 新增
 ]

@@ -248,6 +248,40 @@ class ToolRegistry:
         logger.debug(f"注册工具：{name}")
         return tool_class
 
+    def register(
+        self,
+        tool: BaseTool,
+        tags: Optional[List[str]] = None,
+        description: str = ""
+    ) -> BaseTool:
+        """
+        注册工具实例（兼容 Agent 的用法）
+
+        Args:
+            tool: 工具实例
+            tags: 标签列表
+            description: 描述
+
+        Returns:
+            工具实例
+        """
+        name = tool.__class__.__name__
+        if name not in self._tool_classes:
+            self._tool_classes[name] = tool.__class__
+
+        # 存储实例
+        self._tool_instances[name] = tool
+
+        # 建立标签索引
+        for tag in (tags or []):
+            if tag not in self._tool_tags:
+                self._tool_tags[tag] = []
+            if name not in self._tool_tags[tag]:
+                self._tool_tags[tag].append(name)
+
+        logger.debug(f"注册工具实例：{name}")
+        return tool
+
     def get_all_tools(self) -> List[BaseTool]:
         """获取所有工具实例"""
         if not self._discovered:
@@ -271,6 +305,38 @@ class ToolRegistry:
             # 提取第一行作为简短描述
             desc = desc.strip().split('\n')[0] if desc else name
             result[name] = desc
+
+        return result
+
+    def get_openai_tools(self) -> List[dict]:
+        """
+        获取 OpenAI 格式的工具列表
+
+        Returns:
+            OpenAI 工具格式的列表
+        """
+        if not self._discovered:
+            self.discover_tools()
+
+        result = []
+        for name, tool_instance in self._tool_instances.items():
+            try:
+                # 如果工具有 to_openai_tool 方法，直接调用
+                if hasattr(tool_instance, 'to_openai_tool') and callable(tool_instance.to_openai_tool):
+                    result.append(tool_instance.to_openai_tool())
+                # 否则尝试手动构建
+                elif hasattr(tool_instance, 'name') and hasattr(tool_instance, 'description'):
+                    parameters = getattr(tool_instance, 'parameters', {"type": "object", "properties": {}})
+                    result.append({
+                        "type": "function",
+                        "function": {
+                            "name": tool_instance.name,
+                            "description": tool_instance.description,
+                            "parameters": parameters
+                        }
+                    })
+            except Exception:
+                pass
 
         return result
 

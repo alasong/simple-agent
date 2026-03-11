@@ -108,12 +108,32 @@ class InvokeAgentTool(BaseTool):
                 error="需要指定 agent_name(或 agent_type) 和 task(或 task_description)"
             )
 
+        # 使用全局 verbose 设置（必须在交互模式之前）
+        verbose = get_verbose()
+
         try:
             from simple_agent.core.agent_manager import get_agent
-            agent = get_agent(target_agent)
 
-            # 使用全局 verbose 设置
-            verbose = get_verbose()
+            # Agent 名称转换：支持驼峰命名和蛇形命名
+            # 例如：SoftwareDeveloper -> software_developer
+            def convert_agent_name(name: str) -> str:
+                """将驼峰命名转换为蛇形命名"""
+                import re
+                # 如果已经包含下划线，可能是蛇形命名，直接返回
+                if '_' in name:
+                    return name.lower()
+                # 驼峰转蛇形
+                return re.sub(r'([A-Z])', r'_\1', name).lower().lstrip('_')
+
+            # 尝试直接获取
+            try:
+                agent = get_agent(target_agent)
+            except ValueError:
+                # 转换名称后再尝试（驼峰->蛇形）
+                converted_name = convert_agent_name(target_agent)
+                agent = get_agent(converted_name)
+                if verbose:
+                    print(f"[InvokeAgent] Agent 名称转换: {target_agent} -> {converted_name}")
 
             # 交互模式提示
             if interactive and verbose:

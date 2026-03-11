@@ -463,6 +463,9 @@ class HelpCommand(CommandHandler):
 /session <名称>     切换会话
 /session new <名称> 创建新会话
 /session del <名称> 删除会话
+/session continue <task_id> <消息>  在 session 中继续交互
+/session history <task_id>  查看 session 历史
+/session end <task_id>  结束 session
 /clear             清空当前会话记忆
 
 ===== Agent 管理 =====
@@ -481,6 +484,11 @@ class HelpCommand(CommandHandler):
 /debug [on|off]    切换调试模式
 /debug summary     显示调试摘要
 /debug stats       显示详细统计
+
+===== 任务追踪 =====
+/tasks status <task_id>  查看任务详细状态
+/tasks running         查看正在执行的任务
+/tasks list            列出所有任务（按状态分组）
 
 ===== 后台任务管理 =====
 /bg <任务>         后台执行任务，立即返回

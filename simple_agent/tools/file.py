@@ -34,21 +34,21 @@ def get_output_dir() -> str:
 def validate_path(file_path: str, allow_read_outside: bool = False) -> tuple:
     """
     验证文件路径是否在安全工作目录内
-    
+
     Args:
         file_path: 文件路径
         allow_read_outside: 是否允许读取安全工作目录外的文件（只读操作）
-    
+
     Returns:
         (是否有效，错误消息)
     """
     # 规范化路径
     abs_path = os.path.abspath(file_path)
-    
+
     # 检查是否包含路径遍历模式
     if '..' in file_path:
         return False, "路径包含非法模式：..，不允许访问父目录"
-    
+
     # 对于只读操作，如果明确允许，可以访问 workspace 外
     if allow_read_outside:
         # 但仍然禁止访问敏感目录
@@ -57,26 +57,26 @@ def validate_path(file_path: str, allow_read_outside: bool = False) -> tuple:
             if abs_path.startswith(sensitive):
                 return False, f"禁止访问系统敏感目录：{sensitive}"
         return True, ""
-    
+
     # 严格限制在安全工作目录内
     if not abs_path.startswith(SAFE_WORKSPACE):
         return False, f"文件路径必须在工作目录 {SAFE_WORKSPACE} 内"
-    
+
     return True, ""
 
 
 @tool(tags=["file", "io"], description="读取文件内容")
 class ReadFileTool(BaseTool):
     """读文件工具"""
-    
+
     @property
     def name(self) -> str:
         return "read_file"
-    
+
     @property
     def description(self) -> str:
         return "读取指定路径的文件内容"
-    
+
     @property
     def parameters(self) -> dict:
         return {
@@ -89,13 +89,13 @@ class ReadFileTool(BaseTool):
             },
             "required": ["file_path"]
         }
-    
+
     def execute(self, file_path: str) -> ToolResult:
         # 路径验证
         is_valid, error_msg = validate_path(file_path, allow_read_outside=True)
         if not is_valid:
             return ToolResult(success=False, output="", error=error_msg)
-        
+
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
@@ -107,15 +107,15 @@ class ReadFileTool(BaseTool):
 @tool(tags=["file", "io"], description="写入文件内容")
 class WriteFileTool(BaseTool):
     """写文件工具"""
-    
+
     @property
     def name(self) -> str:
         return "write_file"
-    
+
     @property
     def description(self) -> str:
         return "将内容写入指定路径的文件"
-    
+
     @property
     def parameters(self) -> dict:
         return {
@@ -132,7 +132,7 @@ class WriteFileTool(BaseTool):
             },
             "required": ["file_path", "content"]
         }
-    
+
     def execute(self, file_path: str, content: str) -> ToolResult:
         """
         写入文件（强制输出到 output_dir）
@@ -177,3 +177,19 @@ class WriteFileTool(BaseTool):
             return ToolResult(success=True, output=f"成功写入文件：{file_path}")
         except Exception as e:
             return ToolResult(success=False, output="", error=str(e))
+
+
+# ==================== 注册工具到资源仓库 ====================
+
+from simple_agent.core.resource import repo
+
+repo.register_tool(
+    WriteFileTool,
+    tags=["file", "io", "write"],
+    description="写入文件到指定路径"
+)
+repo.register_tool(
+    ReadFileTool,
+    tags=["file", "io", "read"],
+    description="读取指定路径的文件内容"
+)

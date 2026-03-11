@@ -16,14 +16,42 @@ CLI Agent - 统一的用户交互入口
 
 import asyncio
 import os
+import threading
 import time
 from datetime import datetime
-from typing import Optional, Any, Dict
+from typing import Optional, Any, Dict, List
+from dataclasses import dataclass, field
+from enum import Enum
 
 from simple_agent.core.llm import OpenAILLM
 from simple_agent.core.config_loader import get_config
 from simple_agent.core.task_queue import TaskQueue
 from simple_agent.core.task_handle import TaskHandle
+
+
+class TaskStatus(Enum):
+    """任务状态"""
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+@dataclass
+class TaskInfo:
+    """任务信息"""
+    task_id: str
+    user_input: str
+    status: TaskStatus
+    created_at: str
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+    result: Optional[str] = None
+    error: Optional[str] = None
+    verbose: bool = True
+    output_dir: Optional[str] = None
+    interactive: bool = False
 
 # 导入提示词配置，避免硬编码
 from configs.cli_prompts import PromptTemplates, WeekdayConfig
@@ -327,7 +355,7 @@ class CLIAgent:
     只做入口判断，不处理复杂逻辑
     自身从配置文件加载
     """
-    
+
     def __init__(self, llm: Optional[OpenAILLM] = None, max_concurrent: int = 3, instance_id: Optional[str] = None):
         self.llm = llm or OpenAILLM()
         self._agent = None  # CLI Agent 实例
@@ -339,6 +367,12 @@ class CLIAgent:
         self.task_queue = TaskQueue(max_concurrent=max_concurrent)
         self._task_counter = 0
         self._queue_started = False
+        # Session 管理 - 支持多轮交互
+        self._session_memory: Dict[str, List[Dict]] = {}  # task_id -> messages
+        self._current_session: Optional[str] = None  # 当前会话的 task_id
+        # 任务追踪 - 支持查看正在执行的任务
+        self._tasks: Dict[str, TaskInfo] = {}
+        self._tasks_lock = threading.Lock()
         # Note: CLIAgent delegates to self.agent and self.planner for execution
         # Memory is managed by those agents, not here
     
@@ -352,6 +386,9 @@ class CLIAgent:
             except (ImportError, ValueError):
                 # 配置不存在时，创建临时的
                 self._agent = self._create_fallback_agent()
+
+            # 注册 Agent 到注册中心
+            self._register_agent(self._agent, "cli")
         return self._agent
     
     def _create_fallback_agent(self):
@@ -370,12 +407,269 @@ class CLIAgent:
         """获取 Planner Agent"""
         if self._planner is None:
             try:
-                from builtin_agents import get_agent
+                from simple_agent.builtin_agents import get_agent
                 self._planner = get_agent("planner")
             except (ImportError, ValueError):
                 self._planner = self._create_fallback_planner()
+
+            # 注册 Agent 到注册中心
+            self._register_agent(self._planner, "planner")
         return self._planner
-    
+
+    def _register_agent(self, agent, agent_type: str):
+        """注册 Agent 到注册中心"""
+        try:
+            from simple_agent.core.agent_registry import get_agent_registry, AgentSource
+            registry = get_agent_registry()
+            registry.register(agent, source=AgentSource.CLI)
+        except Exception:
+            pass  # 注册失败不影响主流程
+
+    # ==================== 任务追踪 ====================
+
+    def _create_task_info(self, task_id: str, user_input: str, verbose: bool,
+                         output_dir: Optional[str], interactive: bool) -> TaskInfo:
+        """创建任务信息"""
+        return TaskInfo(
+            task_id=task_id,
+            user_input=user_input,
+            status=TaskStatus.PENDING,
+            created_at=datetime.now().isoformat(),
+            verbose=verbose,
+            output_dir=output_dir,
+            interactive=interactive
+        )
+
+    def _update_task_status(self, task_id: str, status: TaskStatus, **kwargs):
+        """更新任务状态"""
+        with self._tasks_lock:
+            if task_id in self._tasks:
+                task = self._tasks[task_id]
+                if status == TaskStatus.RUNNING and not task.started_at:
+                    task.started_at = datetime.now().isoformat()
+                elif status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED):
+                    task.completed_at = datetime.now().isoformat()
+                task.status = status
+                for key, value in kwargs.items():
+                    if hasattr(task, key):
+                        setattr(task, key, value)
+
+    def _save_task_info(self, task_info: TaskInfo):
+        """保存任务信息"""
+        with self._tasks_lock:
+            self._tasks[task_info.task_id] = task_info
+
+    def get_task(self, task_id: str) -> Optional[TaskInfo]:
+        """获取任务信息"""
+        with self._tasks_lock:
+            return self._tasks.get(task_id)
+
+    def list_tasks(self, status: Optional[TaskStatus] = None) -> List[TaskInfo]:
+        """列出任务，可按状态过滤"""
+        with self._tasks_lock:
+            if status:
+                return [t for t in self._tasks.values() if t.status == status]
+            return list(self._tasks.values())
+
+    def get_running_tasks(self) -> List[TaskInfo]:
+        """获取正在执行的任务"""
+        return self.list_tasks(status=TaskStatus.RUNNING)
+
+    def get_pending_tasks(self) -> List[TaskInfo]:
+        """获取待执行的任务"""
+        return self.list_tasks(status=TaskStatus.PENDING)
+
+    # ==================== Session 管理 ====================
+
+    def create_session(self, task_id: str, user_input: str) -> str:
+        """
+        创建新的 session
+
+        Args:
+            task_id: 任务 ID
+            user_input: 初始输入
+
+        Returns:
+            session ID（与 task_id 相同）
+        """
+        self._session_memory[task_id] = [
+            {"role": "user", "content": user_input}
+        ]
+        self._current_session = task_id
+        return task_id
+
+    def continue_session(self, task_id: str, user_input: str) -> str:
+        """
+        在现有 session 中继续交互
+
+        Args:
+            task_id: 任务 ID（session ID）
+            user_input: 新的用户输入
+
+        Returns:
+            Agent 的响应
+        """
+        if task_id not in self._session_memory:
+            raise ValueError(f"Session {task_id} 不存在")
+
+        # 添加用户消息到 session 记忆
+        self._session_memory[task_id].append({"role": "user", "content": user_input})
+        self._current_session = task_id
+
+        # 获取用于继续对话的输入（包含完整上下文）
+        session_messages = self._session_memory[task_id]
+
+        # 使用 Agent 继续对话
+        agent = self._get_active_agent_for_session(task_id)
+
+        # 调用 Agent 的 run 方法（使用 session 记忆）
+        # 通过注入上下文的方式继续对话
+        if hasattr(agent, 'memory'):
+            # 将 session 消息恢复到 agent 记忆
+            for msg in session_messages:
+                if msg["role"] == "user":
+                    agent.memory.add_user(msg["content"])
+                elif msg["role"] == "assistant":
+                    agent.memory.add_assistant(msg["content"])
+
+        # 获取 Agent 的响应
+        response = agent.run(user_input, verbose=self._get_verbose_for_session(task_id))
+
+        # 保存助手响应到 session
+        self._session_memory[task_id].append({"role": "assistant", "content": response})
+
+        return response
+
+    def continue_session_and_execute(self, task_id: str, user_input: str) -> Any:
+        """
+        在 session 中继续交互并执行任务（用于确认等待的任务）
+
+        Args:
+            task_id: 任务 ID
+            user_input: 用户输入
+
+        Returns:
+            执行结果
+        """
+        if task_id not in self._session_memory:
+            raise ValueError(f"Session {task_id} 不存在")
+
+        # 检查任务是否等待确认
+        from simple_agent.core.task_handle import TaskStatusEnum
+        handle = self.task_queue._tasks.get(task_id)
+        if handle and handle.status.status == TaskStatusEnum.CONFIRMING:
+            # 任务等待确认，执行它
+            async def execute_confirmed_task():
+                return self.execute(
+                    self._session_memory[task_id][0]["content"],  # 原始任务
+                    verbose=True,
+                    session_id=task_id,
+                    create_session=False,
+                    interactive=False  # 已确认，不再需要交互
+                )
+
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    result = asyncio.run_coroutine_threadsafe(execute_confirmed_task(), loop).result()
+                else:
+                    result = loop.run_until_complete(execute_confirmed_task())
+            except Exception as e:
+                import traceback
+                return f"[执行失败] {e}\n{traceback.format_exc()}"
+
+            return result
+
+        # 正常的 session 继续
+        return self.continue_session(task_id, user_input)
+
+    def _get_active_agent_for_session(self, task_id: str):
+        """获取 session 关联的 Agent"""
+        # 默认使用 CLI Agent
+        return self.agent
+
+    def _get_verbose_for_session(self, task_id: str) -> bool:
+        """获取 session 的 verbose 设置"""
+        with self._tasks_lock:
+            task = self._tasks.get(task_id)
+            return task.verbose if task else True
+
+    def get_session_history(self, task_id: str) -> List[Dict]:
+        """获取 session 的历史消息"""
+        return self._session_memory.get(task_id, [])
+
+    def end_session(self, task_id: str):
+        """结束 session"""
+        if task_id in self._session_memory:
+            del self._session_memory[task_id]
+        if self._current_session == task_id:
+            self._current_session = None
+
+    def print_task_status(self, task_id: str):
+        """打印任务状态"""
+        task = self.get_task(task_id)
+        if not task:
+            print(f"[任务 {task_id}] 不存在")
+            return
+
+        print(f"\n{'='*60}")
+        print(f"[任务 {task_id}] 状态")
+        print(f"{'='*60}")
+        print(f"状态: {task.status.value}")
+        print(f"创建时间: {task.created_at}")
+        if task.started_at:
+            print(f"开始时间: {task.started_at}")
+        if task.completed_at:
+            print(f"完成时间: {task.completed_at}")
+        print(f"交互模式: {task.interactive}")
+        print(f"输出目录: {task.output_dir}")
+        print(f"输入: {task.user_input[:100]}{'...' if len(task.user_input) > 100 else ''}")
+        if task.result:
+            print(f"结果: {task.result[:100]}{'...' if len(task.result) > 100 else ''}")
+        if task.error:
+            print(f"错误: {task.error}")
+        print(f"{'='*60}")
+
+    def print_running_tasks(self):
+        """打印正在执行的任务"""
+        tasks = self.get_running_tasks()
+        if not tasks:
+            print("[任务] 没有正在执行的任务")
+            return
+
+        print(f"\n{'='*60}")
+        print(f"[任务] 正在执行的任务 ({len(tasks)} 个)")
+        print(f"{'='*60}")
+        for task in tasks:
+            print(f"  • {task.task_id}: {task.user_input[:50]}...")
+        print(f"{'='*60}")
+
+    def print_all_tasks(self):
+        """打印所有任务"""
+        tasks = self.list_tasks()
+        if not tasks:
+            print("[任务] 没有任务记录")
+            return
+
+        print(f"\n{'='*60}")
+        print(f"[任务] 任务列表 ({len(tasks)} 个)")
+        print(f"{'='*60}")
+
+        # 按状态分组
+        by_status = {}
+        for task in tasks:
+            status = task.status.value
+            if status not in by_status:
+                by_status[status] = []
+            by_status[status].append(task)
+
+        for status, status_tasks in by_status.items():
+            print(f"\n[{status.upper()}] ({len(status_tasks)} 个)")
+            for task in status_tasks:
+                print(f"  • {task.task_id}: {task.user_input[:50]}...")
+
+        print(f"{'='*60}")
+
     def _create_fallback_planner(self):
         """创建临时 Planner Agent"""
         from simple_agent.core.agent import Agent
@@ -495,97 +789,195 @@ SoftwareDeveloper Agent 会自动：
                 return True
             return False
     
-    def execute(self, user_input: str, verbose: bool = True, 
-                output_dir: Optional[str] = None, isolate_by_instance: bool = False) -> Any:
+    def execute(self, user_input: str, verbose: bool = True,
+                output_dir: Optional[str] = None, isolate_by_instance: bool = False,
+                interactive: bool = False, session_id: Optional[str] = None,
+                create_session: bool = True) -> Any:
         """
         执行任务
-        
+
         Args:
             user_input: 用户输入
             verbose: 是否打印详细过程
             output_dir: 输出目录
             isolate_by_instance: 是否按实例隔离
-        
+            interactive: 是否启用交互模式（关键步骤询问用户）
+            session_id: 任务 session ID（用于Continuation对话）
+            create_session: 是否创建新 session
+
         Returns:
             执行结果
         """
+        # 生成 task_id
+        self._task_counter += 1
+        task_id = f"task_{self._task_counter}_{int(time.time() * 1000)}"
+
+        # 如果提供了 session_id，使用它作为 task_id
+        if session_id:
+            task_id = session_id
+            # 在 session 中继续对话
+            if not create_session:
+                try:
+                    return self.continue_session(task_id, user_input)
+                except ValueError as e:
+                    # Session 不存在，创建新的
+                    if verbose:
+                        print(f"[Session] {e}，创建新的 session")
+                    self.create_session(task_id, user_input)
+
+        # 创建任务信息
+        task_info = self._create_task_info(task_id, user_input, verbose, output_dir, interactive)
+        self._save_task_info(task_info)
+
+        # 交互模式：确认执行任务
+        if interactive and verbose:
+            print(f"\n{'='*60}")
+            print("[交互确认] 准备执行任务")
+            print(f"任务：{user_input[:80]}{'...' if len(user_input) > 80 else ''}")
+            print(f"{'='*60}")
+            try:
+                confirm = input("是否继续执行？(Y/n): ").strip().lower()
+                if confirm in ('n', 'no'):
+                    self._update_task_status(task_id, TaskStatus.CANCELLED)
+                    return "[用户取消] 任务已取消"
+            except EOFError:
+                # 非交互模式，继续执行
+                pass
+
         # 1. 判断任务复杂度（LLM 判断会在内部打印详情）
         is_complex = self._is_complex_task(user_input, verbose)
-        
+
         if verbose:
             print(f"\n[CLI Agent] 任务复杂度：{'复杂' if is_complex else '简单'}")
-        
+
+        self._update_task_status(task_id, TaskStatus.RUNNING)
+
         if not is_complex:
             # 2. 简单任务：使用 CLI Agent 直接回答
-            return self._handle_simple_task(user_input, verbose, output_dir, isolate_by_instance)
+            try:
+                result = self._handle_simple_task(user_input, verbose, output_dir, isolate_by_instance, interactive, task_id)
+                self._update_task_status(task_id, TaskStatus.COMPLETED, result=str(result))
+                return result
+            except Exception as e:
+                self._update_task_status(task_id, TaskStatus.FAILED, error=str(e))
+                raise
         else:
             # 3. 复杂任务：委托给 Planner Agent
-            return self._handle_complex_task(user_input, verbose, output_dir, isolate_by_instance)
+            try:
+                result = self._handle_complex_task(user_input, verbose, output_dir, isolate_by_instance, interactive, task_id)
+                self._update_task_status(task_id, TaskStatus.COMPLETED, result=str(result))
+                return result
+            except Exception as e:
+                self._update_task_status(task_id, TaskStatus.FAILED, error=str(e))
+                raise
     
-    def _handle_simple_task(self, user_input: str, verbose: bool = True, 
+    def _handle_simple_task(self, user_input: str, verbose: bool = True,
                            output_dir: Optional[str] = None,
-                           isolate_by_instance: bool = False) -> Any:
+                           isolate_by_instance: bool = False,
+                           interactive: bool = False,
+                           task_id: Optional[str] = None) -> Any:
         """处理简单任务"""
+        # 任务开始时更新状态（如果提供了 task_id）
+        if task_id:
+            self._update_task_status(task_id, TaskStatus.RUNNING)
+
+        # 交互模式：确认简单任务执行
+        if interactive and verbose:
+            print(f"\n{'='*60}")
+            print("[交互确认] 准备执行简单任务")
+            print(f"任务：{user_input[:60]}{'...' if len(user_input) > 60 else ''}")
+            print(f"{'='*60}")
+            try:
+                confirm = input("是否继续执行？(Y/n): ").strip().lower()
+                if confirm in ('n', 'no'):
+                    if task_id:
+                        self._update_task_status(task_id, TaskStatus.CANCELLED)
+                    return "[用户取消] 任务已取消"
+            except EOFError:
+                pass
+
         if verbose:
             print(f"\n[CLI Agent] 使用 CLI Agent 处理简单任务...")
-        
+
         # 检测是否需要实时信息（使用配置中的关键词）
         enhanced_input = user_input
-        
+
         # 日期查询：直接从系统获取当前日期（避免 LLM 编造）
         if any(kw in user_input for kw in PromptTemplates.get_date_keywords()):
             if verbose:
                 print("[CLI Agent] 检测到日期查询，获取系统当前日期...")
-            
+
             # 直接从系统获取日期，避免 LLM 编造
             now = datetime.now()
             weekday_str = WeekdayConfig.get_weekday(now.weekday())
             current_date_str = f"{now.year}年{now.month}月{now.day}日，{weekday_str}"
-            
+
             if verbose:
                 print(PromptTemplates.get_log_current_date(current_date_str))
-            
+
             # 将准确日期注入到提示词
             enhanced_input = f"{user_input}（当前准确日期：{current_date_str}）"
-        
+
         # 天气查询：直接从系统获取当前日期（更可靠，避免 LLM 编造）
         elif any(kw in user_input for kw in PromptTemplates.get_weather_keywords()):
             if verbose:
                 print(PromptTemplates.get_log_weather_detection())
-            
+
             # 直接从系统获取日期，避免 LLM 编造
             now = datetime.now()
             weekday_str = WeekdayConfig.get_weekday(now.weekday())
             current_date_str = f"{now.year}年{now.month}月{now.day}日，{weekday_str}"
-            
+
             if verbose:
                 print(PromptTemplates.get_log_current_date(current_date_str))
-            
+
             # 将准确日期注入到提示词
             prompt_suffix = PromptTemplates.get_weather_prompt(current_date_str)
             enhanced_input = f"{user_input}{prompt_suffix}"
-        
+
         # 实时信息查询
         elif any(kw in user_input for kw in PromptTemplates.get_realtime_keywords()):
             enhanced_input = f"{user_input}{PromptTemplates.get_realtime_prompt_template()}"
-        
-        result = self.agent.run(enhanced_input, verbose=verbose)
-        
+
+        result = self.agent.run(enhanced_input, verbose=verbose, output_dir=output_dir)
+
         # 保存输出到文件，并获取保存的路径
         saved_path = None
         if output_dir:
             saved_path = self._save_output(output_dir, result, user_input, isolate_by_instance)
-        
+
         if verbose:
             print(f"\n[CLI Agent] 任务完成")
-        
+
         # 返回结果和保存路径
         return result, saved_path
     
     def _handle_complex_task(self, user_input: str, verbose: bool = True,
                              output_dir: Optional[str] = None,
-                             isolate_by_instance: bool = False) -> Any:
+                             isolate_by_instance: bool = False,
+                             interactive: bool = False,
+                             task_id: Optional[str] = None) -> Any:
         """处理复杂任务 - 委托给 Planner Agent"""
+        # 任务开始时更新状态（如果提供了 task_id）
+        if task_id:
+            self._update_task_status(task_id, TaskStatus.RUNNING)
+
+        # 交互模式：确认复杂任务执行
+        if interactive and verbose:
+            print(f"\n{'='*60}")
+            print("[交互确认] 准备执行复杂任务")
+            print(f"任务：{user_input[:60]}{'...' if len(user_input) > 60 else ''}")
+            print("说明：复杂任务将由 Planner Agent 进行任务分解和规划")
+            print(f"{'='*60}")
+            try:
+                confirm = input("是否继续执行？(Y/n): ").strip().lower()
+                if confirm in ('n', 'no'):
+                    if task_id:
+                        self._update_task_status(task_id, TaskStatus.CANCELLED)
+                    return "[用户取消] 任务已取消"
+            except EOFError:
+                pass
+
         planner = self._get_planner()
 
         if verbose:
@@ -596,7 +988,7 @@ SoftwareDeveloper Agent 会自动：
         enhanced_input = ContextInjector.inject_context(user_input, verbose)
 
         # Planner Agent 负责处理复杂任务（注入上下文后的输入）
-        result = planner.run(enhanced_input, verbose=verbose)
+        result = planner.run(enhanced_input, verbose=verbose, output_dir=output_dir)
 
         # 保存输出到文件，并获取保存的路径
         saved_path = None
@@ -779,54 +1171,100 @@ SoftwareDeveloper Agent 会自动：
         user_input: str,
         verbose: bool = True,
         output_dir: Optional[str] = None,
-        isolate_by_instance: bool = False
+        isolate_by_instance: bool = False,
+        session_id: Optional[str] = None,
+        create_session: bool = True,
+        interactive: bool = False
     ) -> TaskHandle:
         """
         异步执行任务（后台执行，立即返回）
-        
+
         Args:
             user_input: 用户输入
             verbose: 是否打印详细过程
             output_dir: 输出目录
             isolate_by_instance: 是否按实例隔离
-        
+            session_id: 任务 session ID（用于继续对话）
+            create_session: 是否创建新 session
+            interactive: 是否为交互式任务（需要用户确认）
+
         Returns:
             TaskHandle 对象，用于跟踪任务状态
         """
+        from simple_agent.core.task_handle import TaskStatusEnum
+
         # 确保队列已启动
         await self._ensure_queue_started()
-        
+
         # 生成任务 ID
         self._task_counter += 1
         task_id = f"task_{self._task_counter}_{int(time.time() * 1000)}"
-        
+
+        # 如果提供了 session_id，使用它作为 task_id
+        if session_id:
+            task_id = session_id
+
+        # 如果是交互式任务，先创建 session，设置为 CONFIRMING 状态
+        if interactive:
+            self.create_session(task_id, user_input)
+
+            # 创建 TaskHandle 并设置为 CONFIRMING 状态
+            handle = await self.task_queue.submit(
+                task_id=task_id,
+                input_text=user_input,
+                coro=None,  # 暂时不执行
+                interactive=True
+            )
+
+            # 设置状态为等待确认
+            await handle.update_status(
+                TaskStatusEnum.CONFIRMING,
+                progress="等待用户确认"
+            )
+
+            if verbose:
+                print(f"\n{'='*60}")
+                print("[交互式后台任务] 任务已创建，等待用户确认")
+                print(f"任务 ID: {task_id}")
+                print(f"任务描述: {user_input[:60]}{'...' if len(user_input) > 60 else ''}")
+                print(f"{'='*60}")
+                print("使用以下命令确认并执行：")
+                print(f"  /session continue {task_id} 确认执行")
+                print("或取消任务：")
+                print(f"  /cancel {task_id}")
+            return handle
+
         # 创建执行协程
         async def task_coro():
             """任务执行包装器"""
             loop = asyncio.get_event_loop()
-            
+
             # 在线程池中执行同步的 execute 方法
             def execute_task():
                 return self.execute(
                     user_input,
                     verbose=verbose,
                     output_dir=output_dir,
-                    isolate_by_instance=isolate_by_instance
+                    isolate_by_instance=isolate_by_instance,
+                    session_id=session_id,
+                    create_session=create_session,
+                    interactive=False  # 后台任务不进行交互确认
                 )
-            
+
             return await loop.run_in_executor(None, execute_task)
-        
+
         # 提交到任务队列
         handle = await self.task_queue.submit(
             task_id=task_id,
             input_text=user_input,
-            coro=task_coro()
+            coro=task_coro(),
+            interactive=False
         )
-        
+
         if verbose:
             print(f"\n[CLI Agent] ✓ 任务已提交到后台执行：{task_id}")
             print(f"[CLI Agent] 使用 /tasks 查看状态，/result {task_id} 查看结果")
-        
+
         return handle
     
     def execute_background(

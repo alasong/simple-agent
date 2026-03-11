@@ -15,11 +15,12 @@ from enum import Enum
 
 class TaskStatusEnum(str, Enum):
     """任务状态枚举"""
-    PENDING = "pending"      # 等待执行
-    RUNNING = "running"      # 正在执行
-    COMPLETED = "completed"  # 已完成
-    FAILED = "failed"        # 失败
-    CANCELLED = "cancelled"  # 已取消
+    PENDING = "pending"           # 等待执行
+    RUNNING = "running"           # 正在执行
+    COMPLETED = "completed"       # 已完成
+    FAILED = "failed"             # 失败
+    CANCELLED = "cancelled"       # 已取消
+    CONFIRMING = "confirming"     # 等待用户确认（交互式任务）
 
 
 @dataclass
@@ -100,6 +101,11 @@ class TaskHandle:
     def is_pending(self) -> bool:
         """任务是否等待执行"""
         return self._status.status == TaskStatusEnum.PENDING
+
+    @property
+    def is_confirming(self) -> bool:
+        """任务是否等待用户确认"""
+        return self._status.status == TaskStatusEnum.CONFIRMING
     
     async def update_status(
         self,

@@ -10,12 +10,40 @@ Task Queue - 异步任务队列与后台执行
 """
 
 import asyncio
+import threading
 from dataclasses import dataclass, field
-from typing import Optional, Callable, List, Dict, Any
+from typing import Optional, Callable, List, Dict, Any, Awaitable, Union
 from .task_handle import (
-    TaskHandle, TaskStatus, TaskStatusEnum, 
+    TaskHandle, TaskStatus, TaskStatusEnum,
     TaskDefinition, generate_task_id
 )
+
+
+# 交互式任务回调（用于在主线程中获取用户确认）
+_interactive_callback: Optional[Callable] = None
+_interactive_callback_lock = threading.Lock()
+
+
+def set_interactive_callback(callback: Optional[Callable]):
+    """
+    设置交互式任务回调
+
+    当后台任务需要用户确认时，会调用此回调函数
+
+    Args:
+        callback: 回调函数，签名: lambda prompt: bool
+                 返回 True 表示用户确认，False 表示取消
+    """
+    global _interactive_callback
+    with _interactive_callback_lock:
+        _interactive_callback = callback
+
+
+def get_interactive_callback() -> Optional[Callable]:
+    """获取交互式任务回调"""
+    global _interactive_callback
+    with _interactive_callback_lock:
+        return _interactive_callback
 
 
 class TaskQueue:
@@ -83,31 +111,36 @@ class TaskQueue:
         input_text: str = "",
         coro: Optional[Any] = None,
         callback: Optional[Callable] = None,
-        priority: int = 0
+        priority: int = 0,
+        interactive: bool = False
     ) -> TaskHandle:
         """
         提交任务到队列
-        
+
         Args:
             task_id: 任务 ID（可选，自动生成）
             input_text: 用户输入描述
             coro: 协程对象（可选，如果提供则立即包装执行）
             callback: 完成回调函数（可选）
             priority: 优先级（数字越大优先级越高，默认 0）
-        
+            interactive: 是否为交互式任务（需要用户确认）
+
         Returns:
             TaskHandle 对象，用于跟踪任务状态
         """
         if task_id is None:
             task_id = generate_task_id()
-        
+
         # 创建任务句柄
         handle = TaskHandle(task_id)
         handle.set_input(input_text)
-        
+        # 设置元数据（用于交互式任务标记）
+        if hasattr(handle, 'set_metadata'):
+            handle.set_metadata({"interactive": interactive})
+
         async with self._lock:
             self._tasks[task_id] = handle
-        
+
         # 如果提供了协程，立即创建执行任务
         if coro is not None:
             task_def = TaskDefinition(
@@ -119,7 +152,7 @@ class TaskQueue:
             )
             # 使用负优先级实现最大优先级优先（PriorityQueue 是最小堆）
             await self._queue.put((-priority, task_def))
-        
+
         return handle
     
     async def submit_sync(
@@ -173,9 +206,9 @@ class TaskQueue:
                     )
                 except asyncio.TimeoutError:
                     continue
-                
+
                 task_id = task_def.id
-                
+
                 # 检查任务是否被取消
                 handle = self._tasks.get(task_id)
                 if handle and handle.check_cancelled():
@@ -185,10 +218,20 @@ class TaskQueue:
                     )
                     self._queue.task_done()
                     continue
-                
+
+                # 检查任务是否等待用户确认（交互式任务）
+                if handle and handle.status.status == TaskStatusEnum.CONFIRMING:
+                    # 交互式任务不能在后台执行，需要用户手动确认
+                    await handle.update_status(
+                        TaskStatusEnum.PENDING,
+                        progress="等待用户确认（交互式任务）"
+                    )
+                    self._queue.task_done()
+                    continue
+
                 # 执行任务（受 semaphore 限制）
                 asyncio.create_task(self._execute_task(task_def, handle))
-                
+
             except asyncio.CancelledError:
                 break
             except Exception as e:
