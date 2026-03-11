@@ -329,6 +329,7 @@ class TaskSchedulerV2:
     - 失败重试机制
     - 并行执行
     - 实时监控
+    - 自动注册 Agent 到注册中心
     """
 
     def __init__(
@@ -337,10 +338,23 @@ class TaskSchedulerV2:
         llm=None,
         max_concurrent: int = 5,
         retry_delay_base: float = 1.0,
-        retry_delay_max: float = 30.0
+        retry_delay_max: float = 30.0,
+        register_agents: bool = True  # 是否自动注册 Agent
     ):
         self.agent_pool = agent_pool
         self.llm = llm
+
+        # 导入注册中心
+        from simple_agent.core.agent_registry import get_agent_registry, AgentSource
+
+        # 注册所有 Agent 到注册中心
+        self._registry = get_agent_registry() if register_agents else None
+        if register_agents:
+            for agent in agent_pool:
+                try:
+                    self._registry.register(agent, source=AgentSource.SCHEDULER)
+                except Exception:
+                    pass  # 已注册或注册失败，继续
 
         # 创建动态调度器
         self.scheduler = DynamicScheduler(

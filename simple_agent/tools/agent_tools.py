@@ -32,8 +32,8 @@ def set_output_dir(output_dir: Optional[str]):
     _execution_context.output_dir = output_dir
 
 
-def get_output_dir() -> Optional[str]:
-    """获取全局输出目录"""
+def get_output_dir() -> str:
+    """获取全局输出目录（如果未设置，返回 None）"""
     return getattr(_execution_context, 'output_dir', None)
 
 

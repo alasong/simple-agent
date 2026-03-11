@@ -157,11 +157,18 @@ class Agent:
                 self.name, self.version, self.instance_id, user_input
             )
 
-        # 设置全局 verbose 状态
+        # 设置全局 verbose 状态和 output_dir
         try:
-            from simple_agent.tools.agent_tools import set_verbose, set_output_dir
+            from simple_agent.tools.agent_tools import set_verbose
             set_verbose(verbose)
-            set_output_dir(output_dir)
+        except ImportError:
+            pass
+
+        # 设置文件工具的输出目录（优先使用 file.py 中的定义）
+        try:
+            from simple_agent.tools.file import set_output_dir as set_file_output_dir
+            if output_dir:
+                set_file_output_dir(output_dir)
         except ImportError:
             pass
 

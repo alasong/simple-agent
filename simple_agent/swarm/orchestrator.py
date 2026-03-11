@@ -120,7 +120,8 @@ class SwarmOrchestrator:
         max_iterations: int = 50,
         verbose: bool = True,
         use_rich_output: bool = True,
-        max_concurrent: int = 5
+        max_concurrent: int = 5,
+        register_agents: bool = True
     ):
         """
         初始化 SwarmOrchestrator
@@ -132,6 +133,7 @@ class SwarmOrchestrator:
             verbose: 是否输出详细过程
             use_rich_output: 是否使用富文本输出
             max_concurrent: 最大并发数
+            register_agents: 是否自动注册 Agent 到注册中心
         """
         self.agent_pool = agent_pool
         self.llm = llm
@@ -139,12 +141,14 @@ class SwarmOrchestrator:
         self.verbose = verbose
         self.use_rich_output = use_rich_output
         self.max_concurrent = max_concurrent
+        self._register_agents = register_agents
 
         # 延迟初始化组件
         self._scheduler = None
         self._task_graph = None
         self._decomposer = None
         self._rich_output = None
+        self._registry = None  # Agent 注册中心
 
         # 状态
         self._running = False
@@ -155,6 +159,21 @@ class SwarmOrchestrator:
         self._on_task_start: Optional[Callable] = None
         self._on_task_complete: Optional[Callable] = None
         self._on_swarm_complete: Optional[Callable] = None
+
+        # 注册 Agent 池（如果启用）
+        if register_agents:
+            self._register_agent_pool()
+
+    def _register_agent_pool(self):
+        """注册 Agent 池到注册中心"""
+        from simple_agent.core.agent_registry import get_agent_registry, AgentSource
+
+        self._registry = get_agent_registry()
+        for agent in self.agent_pool:
+            try:
+                self._registry.register(agent, source=AgentSource.SWARM)
+            except Exception:
+                pass  # 已注册或注册失败，继续
 
     def _init_components(self):
         """延迟初始化组件"""
