@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://simple-agent.com/schemas/agent.json",
+  "title": "Agent Configuration Schema",
+  "description": "Schema for validating agent configuration files",
+  "type": "object",
+  "required": ["name", "version", "description", "system_prompt", "tools", "domains"],
+  "properties": {
+    "name": {"type": "string", "minLength": 1},
+    "version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
+    "description": {"type": "string", "minLength": 1},
+    "system_prompt": {"type": "string", "minLength": 1},
+    "tools": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "domains": {"type": "array", "items": {"type": "string"}, "minItems": 1}
+  }
+}

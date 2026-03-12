@@ -1,0 +1,4 @@
+# Base Agent Template - 最小模板
+name: "自定义 Agent"
+version: "1.0.0"
+description: "请描述您的 Agent 用途（例如：专注于 Web 开发的专家）"

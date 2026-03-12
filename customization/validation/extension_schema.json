@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://simple-agent.com/schemas/extension.json",
+  "title": "Extension Configuration Schema",
+  "description": "Schema for validating extension configuration files",
+  "type": "object",
+  "required": ["name", "type", "path"],
+  "properties": {
+    "name": {"type": "string", "minLength": 1},
+    "type": {"type": "string", "enum": ["tool", "strategy", "agent", "decorator"]},
+    "path": {"type": "string", "minLength": 1},
+    "enabled": {"type": "boolean", "default": true}
+  }
+}
