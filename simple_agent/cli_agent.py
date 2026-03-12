@@ -16,6 +16,7 @@ CLI Agent - 统一的用户交互入口
 
 import asyncio
 import os
+import re
 import threading
 import time
 from datetime import datetime
@@ -362,7 +363,8 @@ class CLIAgent:
         llm: Optional[OpenAILLM] = None,
         max_concurrent: int = 3,
         instance_id: Optional[str] = None,
-        agent_pool: Optional[List[Any]] = None
+        agent_pool: Optional[List[Any]] = None,
+        debug_mode: bool = False
     ):
         self.llm = llm or OpenAILLM()
         self._agent = None  # CLI Agent 实例
@@ -371,6 +373,8 @@ class CLIAgent:
         self.agent_pool = agent_pool or []
         # 实例 ID - 用于输出隔离
         self.instance_id = instance_id
+        # Debug 模式
+        self.debug_mode = debug_mode
         # 任务队列 - 支持后台执行
         self.task_queue = TaskQueue(max_concurrent=max_concurrent)
         self._task_counter = 0
@@ -960,7 +964,9 @@ SoftwareDeveloper Agent 会自动：
         elif any(kw in user_input for kw in PromptTemplates.get_realtime_keywords()):
             enhanced_input = f"{user_input}{PromptTemplates.get_realtime_prompt_template()}"
 
-        result = self.agent.run(enhanced_input, verbose=verbose, output_dir=output_dir)
+        # 检查 debug 模式：环境变量 DEBUG=1 或 debug_mode 属性
+        is_debug = os.environ.get('DEBUG') == '1' or self.debug_mode
+        result = self.agent.run(enhanced_input, verbose=verbose, output_dir=output_dir, debug=is_debug)
 
         # 保存输出到文件，并获取保存的路径
         saved_path = None
@@ -1009,7 +1015,9 @@ SoftwareDeveloper Agent 会自动：
         enhanced_input = ContextInjector.inject_context(user_input, verbose)
 
         # Planner Agent 负责处理复杂任务（注入上下文后的输入）
-        result = planner.run(enhanced_input, verbose=verbose, output_dir=output_dir)
+        # 检查 debug 模式：环境变量 DEBUG=1 或 debug_mode 属性
+        is_debug = os.environ.get('DEBUG') == '1' or self.debug_mode
+        result = planner.run(enhanced_input, verbose=verbose, output_dir=output_dir, debug=is_debug)
 
         # 保存输出到文件，并获取保存的路径
         saved_path = None
@@ -1045,8 +1053,10 @@ SoftwareDeveloper Agent 会自动：
         is_testing = is_test_environment()
 
         # Debug 模式下显示质量评估（即使在测试环境中也显示）
-        # 检查 debug 模式：环境变量
+        # 检查 debug 模式：环境变量 DEBUG=1 或 coordinator 设置的 debug_mode
         is_debug = os.environ.get('DEBUG') == '1'
+        if hasattr(self, 'debug_mode'):
+            is_debug = is_debug or self.debug_mode
         if is_debug:
             self._show_quality_assessment(result, user_input)
 
@@ -1140,19 +1150,25 @@ SoftwareDeveloper Agent 会自动：
             lacks_content = len(result) < 300 or "无法获取" in result or "网络连接" in result
 
             # 信息查询类任务：检查是否包含具体数据（而非步骤/示例）
+            # 检查用户输入是否在询问信息
             is_info_query = any(
                 kw in user_input.lower()
-                for kw in ["什么", "哪些", "情况", "状态", "信息", "数据", "热点", "行情"]
+                for kw in ["什么", "哪些", "情况", "状态", "信息", "数据", "热点", "行情", "天气", "日期", "时间"]
             )
 
-            # 对于信息查询类任务，实质性内容指的是具体数据而非步骤
-            if is_info_query:
-                # 只关心数据/信息相关的缺失，不关心步骤/示例
-                has_substance_issues = any(
-                    "数据" in item or "信息" in item
-                    for item in report.failed_items
-                )
+            # 检查内容中是否有具体数据值（数字、日期、百分比等）
+            has_specific_data = bool(
+                re.search(r'\d+\.?\d*[%°℃℉]?|[20]\d{2}年|[0-1]\d月|[0-3]\d日', result)
+            )
+
+            # 对于信息查询任务，如果有具体数据，即使缺少"示例/步骤"也应该是高质量
+            if is_info_query and has_specific_data:
+                # 信息查询任务有具体数据，降低"示例/步骤"的权重
+                substance_issue_items = [item for item in report.failed_items
+                                        if "具体" in item or "数据" in item]
+                has_substance_issues = len(substance_issue_items) > 0
             else:
+                # 普通任务保持原有逻辑
                 has_substance_issues = any(
                     "具体" in item or "示例" in item or "步骤" in item or "数据" in item
                     for item in report.failed_items

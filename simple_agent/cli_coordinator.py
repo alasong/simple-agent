@@ -297,10 +297,10 @@ class CLICoordinator:
         self.router = CommandRouter()
         self.session_manager = SessionManager()
         self.output_manager = OutputManager()
-        
-        # 初始化 CLI Agent
-        self.context.cli_agent = CLIAgent()
-        
+
+        # 初始化 CLI Agent（默认 debug_mode 为 False，由 initialize() 设置）
+        self.context.cli_agent = CLIAgent(debug_mode=False)
+
         # 注册所有命令
         self._register_commands()
     
@@ -338,14 +338,16 @@ class CLICoordinator:
             print(f"\n[阶段 1] 增强型 Agent 已初始化")
         except Exception as e:
             print(f"[警告] 初始化增强型 Agent 失败：{e}")
-        
-        # 默认启用 debug 模式
+
+        # 默认启用 debug 模式（设置到 CLI Agent）
+        self.context.cli_agent.debug_mode = True
+
         try:
             from simple_agent.core import enable_debug
             enable_debug(verbose=True)
         except Exception:
             pass
-    
+
     def process_command(self, user_input: str) -> CommandResult:
         """处理命令
         
@@ -468,43 +470,56 @@ class CLICoordinator:
             pass
 
     def _generate_task_output_dir(self, user_input: str) -> str:
-        """生成任务专属输出目录
+        """生成任务专属输出目录（优化结构）
+
+        目录结构：
+        output/
+        ├── YYYYMMDD/           # 按日期分类
+        │   ├── HHMMSS_task/    # 按时间+任务名
+        │   │   ├── result.txt  # 主结果文件
+        │   │   ├── workflow/   # Workflow 执行记录
+        │   │   └── files/      # 生成的文件
+        │   └── summary.json    # 今日任务摘要
 
         Args:
             user_input: 用户任务描述
 
         Returns:
-            输出目录路径: output/<task_name>+<timestamp>/
+            输出目录路径
         """
-        # 从配置获取输出根目录（默认 ./output）
-        output_root = OUTPUT_ROOT
-
-        # 从任务描述中提取简要任务名
         import re
         import hashlib
 
-        # 尝试提取英文单词
-        words = re.findall(r'[a-zA-Z0-9]+', user_input)
+        # 从配置获取输出根目录（默认 ./output）
+        output_root = OUTPUT_ROOT
 
+        # 生成日期目录（按天分类）
+        date_dir = datetime.now().strftime('%Y%m%d')
+        date_path = os.path.join(output_root, date_dir)
+        os.makedirs(date_path, exist_ok=True)
+
+        # 生成时间戳（精确到秒）
+        timestamp = datetime.now().strftime('%H%M%S')
+
+        # 从任务描述中提取简要任务名
+        words = re.findall(r'[a-zA-Z0-9]+', user_input)
         if words:
             # 优先使用前几个英文单词作为任务名
             task_name = '_'.join(words[:min(3, len(words))])
         else:
-            # 如果没有英文单词，使用摘要（任务描述的 hash 值前缀）
-            hash_val = hashlib.md5(user_input.encode('utf-8')).hexdigest()[:8]
+            # 如果没有英文单词，使用 hash 值前缀
+            hash_val = hashlib.md5(user_input.encode('utf-8')).hexdigest()[:6]
             task_name = f"task_{hash_val}"
 
-        # 转小写（更通用的文件系统兼容）
+        # 转小写
         task_name = task_name.lower()
         # 限制长度
-        if len(task_name) > 30:
-            task_name = task_name[:30]
+        if len(task_name) > 20:
+            task_name = task_name[:20]
 
-        # 生成时间戳
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-
-        # 组合：output/<task_name>_<timestamp>/
-        return os.path.join(output_root, f"{task_name}_{timestamp}")
+        # 组合：output/YYYYMMDD/HHMMSS_taskname/
+        task_dir_name = f"{timestamp}_{task_name}"
+        return os.path.join(date_path, task_dir_name)
     
     def get_current_state(self) -> Dict[str, Any]:
         """获取当前状态"""

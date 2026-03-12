@@ -247,7 +247,20 @@ class QualityChecker:
         Returns:
             (passed, confidence, reason)
         """
-        # 基于关键词的简单判断逻辑
+        import re
+
+        # 任务类型检测 - 用于调整评估标准
+        is_info_query = bool(
+            re.search(r'今天|明天|昨天|现在|几点|多少|什么|哪些|情况|状态|天气|温度|汇率|股价|行情', content)
+        )
+        is_code_related = bool(
+            re.search(r'代码|python|javascript|def |class |```|function', content)
+        )
+        is_step_by_step = bool(
+            re.search(r'步骤|第一|第二|首先|其次|然后|接着|最后|1\.|2\.|3\.', content)
+        )
+
+        # 根据内容类型调整评估标准
         item_keywords = {
             "可运行": ["def ", "class ", "import ", "return ", "if ", "for "],
             "语法错误": ["error", "错误", "syntax"],
@@ -260,6 +273,35 @@ class QualityChecker:
             "步骤": ["步骤", "第一步", "然后", "接着", "最后"],
             "示例": ["例如", "比如", "示例", "code", "```"],
         }
+
+        # 对于信息查询任务，调整评估逻辑
+        if is_info_query:
+            # 信息查询任务：检查是否有具体数据/信息
+            if "具体" in item:
+                # 检查是否有具体的数据值
+                has_data = bool(re.search(r'\d+\.?\d*[%°℃℉]?|[20]\d{2}年|[0-1]\d月|[0-3]\d日', content))
+                if has_data:
+                    return (True, 0.9, "包含具体数据值")
+                else:
+                    return (False, 0.6, "缺少具体数据值")
+            if "示例" in item or "步骤" in item:
+                # 信息查询不需要示例/步骤，自动通过
+                return (True, 0.8, "信息查询任务，无需示例/步骤")
+
+        # 对于代码相关任务，检查代码质量
+        if is_code_related:
+            if "可运行" in item:
+                has_code = bool(re.search(r'```|def |class |function ', content))
+                if has_code:
+                    return (True, 0.85, "包含代码片段")
+                else:
+                    return (False, 0.5, "缺少代码内容")
+            if "注释" in item:
+                has_comment = bool(re.search(r'# |// |/\*|注释|说明', content))
+                if has_comment:
+                    return (True, 0.8, "包含注释或说明")
+                else:
+                    return (False, 0.6, "缺少注释")
 
         # 检查是否包含相关关键词
         for keyword, patterns in item_keywords.items():
