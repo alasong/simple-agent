@@ -126,11 +126,23 @@ class Agent:
     # ==================== 工具执行 ====================
 
     def _execute_tool(self, tool_name: str, arguments: dict) -> ToolResult:
-        """执行工具"""
+        """执行工具（带异常处理）"""
         tool = self.tool_registry.get(tool_name)
         if not tool:
             return ToolResult(success=False, output="", error=f"未知工具：{tool_name}")
-        return tool.execute(**arguments)
+
+        # 验证参数
+        if not isinstance(arguments, dict):
+            return ToolResult(success=False, output="", error=f"工具参数必须是字典类型: {tool_name}")
+
+        try:
+            return tool.execute(**arguments)
+        except TypeError as e:
+            # 参数类型错误
+            return ToolResult(success=False, output="", error=f"工具参数错误: {str(e)}")
+        except Exception as e:
+            # 工具执行异常（不中断整个任务）
+            return ToolResult(success=False, output="", error=f"工具执行异常: {str(e)}")
 
     # ==================== 运行主循环 ====================
 
@@ -374,6 +386,13 @@ class Agent:
                         sandbox.manifest.completed_at = datetime.now().isoformat()
                         sandbox.manifest.save(str(sandbox.root / "manifest.json"))
 
+                    # 清理执行上下文
+                    try:
+                        from .execution_context import clear as clear_execution_context
+                        clear_execution_context()
+                    except ImportError:
+                        pass
+
                     return error_msg
 
         result_text = f"达到最大迭代次数 ({self.max_iterations})，任务可能未完成"
@@ -389,6 +408,13 @@ class Agent:
             sandbox.manifest.status = "success"
             sandbox.manifest.completed_at = datetime.now().isoformat()
             sandbox.manifest.save(str(sandbox.root / "manifest.json"))
+
+        # 清理执行上下文
+        try:
+            from .execution_context import clear as clear_execution_context
+            clear_execution_context()
+        except ImportError:
+            pass
 
         return result_text
 
@@ -566,10 +592,53 @@ class AgentErrorEnhancer:
     """
 
     def enhance_with_suggestions(self, tool_name: str, arguments: Dict, error: str) -> str:
+        # 检测是否是代码组件名误认为工具
+        # 常见的 React/前端组件名模式
+        common_component_patterns = [
+            "task", "form", "list", "item", "header", "footer", "nav", "sidebar",
+            "button", "input", "select", "table", "card", "panel", "container",
+            "app", "main", "content", "section", "row", "col", "grid", "flex",
+            "modal", "popup", "dropdown", "menu", "tabs", "accordion", "carousel",
+            "avatar", "badge", "breadcrumb", "checkbox", "radio", "slider", "switch",
+            "alert", "toast", "tooltip", "popover", "dialog", "overlay", "layer",
+        ]
+
+        # 检测工具名是否符合代码组件命名模式（大驼峰，常见组件名）
+        is_likely_component = (
+            tool_name[0].isupper() and  # 大驼峰命名
+            any(pattern in tool_name.lower() for pattern in common_component_patterns)
+        )
+
+        # 检测是否是变量名或类名（如 personal-todo-app）
+        is_likely_variable = (
+            tool_name.replace('-', '').replace('_', '').isalnum() and
+            ('-' in tool_name or '_' in tool_name or tool_name[0].islower())
+        )
+
         enhanced = f"错误：{error}\n\n"
         enhanced += "⚠️ **重要提示**：不要重复调用同一个工具！这个错误是持久性的，重试不会成功。\n\n"
 
-        if tool_name == "WebSearchTool":
+        if is_likely_component:
+            enhanced += f"💡 **检测到代码组件名误认为工具**：\n"
+            enhanced += f"   '{tool_name}' 看起来是一个代码组件名（如 React 组件），而不是系统工具。\n"
+            enhanced += f"   **请停止调用组件名作为工具！**\n"
+            enhanced += f"   - 如果用户要求创建代码组件，直接返回代码，不要调用工具\n"
+            enhanced += f"   - 系统允许的工具只有：BashTool, InvokeAgentTool, CreateWorkflowTool, ListAgentsTool, WebSearchTool, ExplainReasonTool, SupplementTool\n"
+            enhanced += f"   - 代码组件（如 TaskForm, TaskList, Header, FilterPanel）不是工具！\n"
+            enhanced += f"\n💡 **下一步**：\n"
+            enhanced += f"   1. 停止尝试调用 '{tool_name}'\n"
+            enhanced += f"   2. 直接提供代码实现\n"
+            enhanced += f"   3. 如果需要文件写入，使用 WriteFileTool\n"
+            enhanced += f"\n---\n\n"
+        elif is_likely_variable:
+            enhanced += f"💡 **检测到变量/类名误认为工具**：\n"
+            enhanced += f"   '{tool_name}' 看起来是一个变量名、类名或项目名，而不是系统工具。\n"
+            enhanced += f"   **请停止调用变量名作为工具！**\n"
+            enhanced += f"\n💡 **下一步**：\n"
+            enhanced += f"   1. 停止尝试调用 '{tool_name}'\n"
+            enhanced += f"   2. 理解用户需求，提供实际解决方案\n"
+            enhanced += f"\n---\n\n"
+        elif tool_name == "WebSearchTool":
             enhanced += self._enhance_web_search_error(arguments, error)
         elif tool_name in ["GetCurrentDateTool", "DateTimeTool"]:
             enhanced += "💡 应对建议：\n"

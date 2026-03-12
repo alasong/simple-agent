@@ -44,7 +44,17 @@ def get_verbose() -> bool:
     return getattr(_execution_context, 'verbose', True)
 
 
+def clear():
+    """清理执行上下文（用于任务结束后的资源清理）"""
+    if hasattr(_execution_context, 'output_dir'):
+        delattr(_execution_context, 'output_dir')
+    if hasattr(_execution_context, 'sandbox_dir'):
+        delattr(_execution_context, 'sandbox_dir')
+    if hasattr(_execution_context, 'verbose'):
+        delattr(_execution_context, 'verbose')
+
+
 # 保持向后兼容：直接导出 _execution_context
 # 旧代码仍可使用 _execution_context 直接访问
 __all__ = ['_execution_context', 'set_output_dir', 'get_output_dir',
-           'set_sandbox_dir', 'get_sandbox_dir', 'set_verbose', 'get_verbose']
+           'set_sandbox_dir', 'get_sandbox_dir', 'set_verbose', 'get_verbose', 'clear']

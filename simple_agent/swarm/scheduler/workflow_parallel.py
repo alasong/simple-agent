@@ -306,12 +306,12 @@ class ParallelWorkflow:
                 key = f"{task.instance_id or task.name}"
 
                 if isinstance(result, Exception):
-                    # 异常
+                    # 异常（包括 asyncio.TimeoutError）
                     exec_result = ParallelExecutionResult(
                         step_name=task.name,
                         instance_id=task.instance_id or "default",
                         success=False,
-                        error=str(result)
+                        error=f"{type(result).__name__}: {result}"
                     )
                     results[key] = exec_result
                 elif isinstance(result, ParallelExecutionResult):
@@ -349,8 +349,12 @@ class ParallelWorkflow:
         # 复制文件
         for file_path in result.result.files:
             if os.path.exists(file_path):
-                dest_path = os.path.join(files_dir, os.path.basename(file_path))
-                shutil.copy2(file_path, dest_path)
+                try:
+                    dest_path = os.path.join(files_dir, os.path.basename(file_path))
+                    shutil.copy2(file_path, dest_path)
+                except Exception as e:
+                    # 文件复制失败不影响其他文件
+                    pass
 
         # 保存 JSON 结果
         if result.result and result.result.type == ResultType.JSON:
@@ -358,8 +362,12 @@ class ParallelWorkflow:
                 json_file = os.path.join(output_dir, instance_id, f"{result.step_name}_data.json")
             else:
                 json_file = os.path.join(output_dir, f"{result.step_name}_data.json")
-            with open(json_file, 'w', encoding='utf-8') as f:
-                json.dump(result.result.content, f, ensure_ascii=False, indent=2)
+            try:
+                with open(json_file, 'w', encoding='utf-8') as f:
+                    json.dump(result.result.content, f, ensure_ascii=False, indent=2)
+            except Exception as e:
+                # JSON 保存失败不中断执行
+                pass
 
     async def execute_sequential(
         self,

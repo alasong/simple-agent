@@ -127,15 +127,16 @@ class WebSearchTool(BaseTool):
             return ToolResult(
                 success=False,
                 output=f"{error_msg}\n\n{suggestion}\n\n{fallback}",
-                error=f"连接错误：{e}"
+                error=f"连接错误：{type(e).__name__}: {e}"
             )
         except Exception as e:
+            # 捕获所有异常，不中断整个任务
             error_msg = f"网络搜索遇到错误。"
             suggestion = "建议：检查网络连接后重试，或尝试其他查询。"
             return ToolResult(
                 success=False,
-                output=f"{error_msg}\n\n{suggestion}\n\n错误详情：{str(e)}",
-                error=f"网络搜索失败：{e}"
+                output=f"{error_msg}\n\n{suggestion}\n\n错误详情：{type(e).__name__}: {e}",
+                error=f"网络搜索失败：{type(e).__name__}: {e}"
             )
 
 

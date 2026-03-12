@@ -200,17 +200,25 @@ class BashTool(BaseTool):
         mode: Optional[str] = None,  # "auto" or "review"
         **kwargs
     ) -> ToolResult:
-        """执行 shell 命令
-
-        Args:
-            command: 要执行的命令
-            timeout: 超时时间
-            confirmed_by_user: 用户是否已确认危险命令
-            cwd: 工作目录（默认使用沙箱目录或 output_dir）
-            use_sandbox: 是否使用沙箱目录作为工作目录
-            mode: 执行模式 ("auto" 或 "review")，覆盖全局设置
-        """
+        """执行 shell 命令（带完整异常处理）"""
         try:
+            # 验证输入参数
+            if not isinstance(command, str):
+                return ToolResult(
+                    success=False,
+                    output="",
+                    error="command 参数必须是字符串类型"
+                )
+
+            if not command or not command.strip():
+                return ToolResult(
+                    success=False,
+                    output="",
+                    error="command 参数不能为空"
+                )
+
+            # 限制超时时间
+            timeout = min(max(int(timeout), 1), 300)
             # 安全检查
             need_confirm, reason = is_dangerous(command)
 
@@ -303,10 +311,11 @@ class BashTool(BaseTool):
                 error=f"命令执行超时（超过 {timeout} 秒）"
             )
         except Exception as e:
+            # 捕获所有异常，不中断整个任务
             return ToolResult(
                 success=False,
                 output="",
-                error=f"执行命令失败：{e}"
+                error=f"执行命令失败：{type(e).__name__}: {e}"
             )
 
 

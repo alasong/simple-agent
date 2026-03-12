@@ -435,11 +435,37 @@ class CLICoordinator:
                 result = result_tuple
                 saved_path = None
 
+            # 打印 debug 摘要（如果 debug 模式启用）
+            self._print_debug_summary(result)
+
             return result
 
         except Exception as e:
             import traceback
             return f"[错误] 任务执行失败：{e}\n{traceback.format_exc()}"
+
+    def _print_debug_summary(self, result: Any):
+        """打印 debug 摘要（如果 debug 模式启用）"""
+        try:
+            from simple_agent.core import get_debug_summary, print_debug_summary, tracker
+
+            # 检查 debug 模式是否启用
+            if not tracker or not tracker.enabled:
+                return
+
+            # 打印执行摘要
+            print_debug_summary()
+
+            # 如果有质量评估，也显示（通过环境变量或 debug_mode）
+            is_debug = os.environ.get('DEBUG') == '1' or self.context.debug_mode
+            if is_debug and result:
+                # 质量评估已在 cli_agent._show_quality_assessment 中打印
+                # 这里只打印分隔符
+                print("\n" + "=" * 60)
+
+        except Exception:
+            # debug 打印失败不影响主流程
+            pass
 
     def _generate_task_output_dir(self, user_input: str) -> str:
         """生成任务专属输出目录

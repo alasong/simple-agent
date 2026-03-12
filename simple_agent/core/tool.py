@@ -38,8 +38,19 @@ class BaseTool(ABC):
     
     @abstractmethod
     def execute(self, **kwargs) -> ToolResult:
-        """执行工具"""
+        """执行工具 - 所有工具实现必须包含异常处理"""
         pass
+
+    def _validate_arguments(self, kwargs: dict) -> tuple[bool, Optional[str]]:
+        """
+        验证工具参数（可被子类重写）
+
+        Returns:
+            (是否通过, 错误消息)
+        """
+        if not isinstance(kwargs, dict):
+            return False, "参数必须是字典类型"
+        return True, None
     
     def to_openai_tool(self) -> dict:
         """转换为 OpenAI tool 格式"""

@@ -38,8 +38,8 @@ class ToolTester:
     def test_websearch_tool(self) -> TestResult:
         """测试 WebSearchTool"""
         try:
-            from core.resource import repo
-            import tools  # noqa: F401
+            from simple_agent.core.resource import repo
+            import simple_agent.tools  # noqa: F401
             
             # 获取工具
             web_search_tool = repo.get_tool("WebSearchTool")
@@ -78,8 +78,8 @@ class ToolTester:
     def test_invoke_agent_tool(self) -> TestResult:
         """测试 InvokeAgentTool"""
         try:
-            from core.resource import repo
-            import tools  # noqa: F401
+            from simple_agent.core.resource import repo
+            import simple_agent.tools  # noqa: F401
             
             tool_class = repo.get_tool("InvokeAgentTool")
             if not tool_class:
@@ -106,26 +106,26 @@ class ToolTester:
     def test_create_workflow_tool(self) -> TestResult:
         """测试 CreateWorkflowTool"""
         try:
-            from core.resource import repo
-            import tools  # noqa: F401
-            
+            from simple_agent.core.resource import repo
+            import simple_agent.tools  # noqa: F401
+
             tool_class = repo.get_tool("CreateWorkflowTool")
             if not tool_class:
                 return TestResult("CreateWorkflowTool", False, "工具未注册")
-            
+
             tool_instance = tool_class()
-            
+
             if not tool_instance.name:
                 return TestResult("CreateWorkflowTool", False, "缺少 name 属性")
-            
+
             # 检查参数
             params = tool_instance.parameters
-            if 'workflow_name' not in params.get('properties', {}):
-                return TestResult("CreateWorkflowTool", False, "缺少 workflow_name 参数")
-            
+            if 'task_description' not in params.get('properties', {}):
+                return TestResult("CreateWorkflowTool", False, "缺少 task_description 参数")
+
             if 'steps' not in params.get('properties', {}):
                 return TestResult("CreateWorkflowTool", False, "缺少 steps 参数")
-            
+
             return TestResult("CreateWorkflowTool", True, f"工具属性完整")
         
         except Exception as e:
@@ -134,8 +134,8 @@ class ToolTester:
     def test_read_file_tool(self) -> TestResult:
         """测试 ReadFileTool"""
         try:
-            from core.resource import repo
-            import tools  # noqa: F401
+            from simple_agent.core.resource import repo
+            import simple_agent.tools  # noqa: F401
             
             tool_class = repo.get_tool("ReadFileTool")
             if not tool_class:
@@ -154,8 +154,8 @@ class ToolTester:
     def test_write_file_tool(self) -> TestResult:
         """测试 WriteFileTool"""
         try:
-            from core.resource import repo
-            import tools  # noqa: F401
+            from simple_agent.core.resource import repo
+            import simple_agent.tools  # noqa: F401
             
             tool_class = repo.get_tool("WriteFileTool")
             if not tool_class:
@@ -174,8 +174,8 @@ class ToolTester:
     def test_list_agents_tool(self) -> TestResult:
         """测试 ListAgentsTool"""
         try:
-            from core.resource import repo
-            import tools  # noqa: F401
+            from simple_agent.core.resource import repo
+            import simple_agent.tools  # noqa: F401
             
             tool_class = repo.get_tool("ListAgentsTool")
             if not tool_class:

@@ -546,7 +546,7 @@ def main():
         
         try:
             result = coordinator.execute(task)
-            
+
             # 展示结果
             if RICH_AVAILABLE:
                 if hasattr(result, 'tasks_completed'):
@@ -557,7 +557,15 @@ def main():
                 print(f"\n{'='*60}")
                 print(f"结果：{result}")
                 print(f"{'='*60}")
-        
+
+            # 如果 debug 模式启用，打印 debug 摘要
+            if args.debug or coordinator.context.debug_mode:
+                try:
+                    from simple_agent.core import print_debug_summary
+                    print_debug_summary()
+                except Exception:
+                    pass  # debug 打印失败不影响主流程
+
         except Exception as e:
             if RICH_AVAILABLE:
                 print_error(f"{e}")

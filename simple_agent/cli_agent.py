@@ -1045,7 +1045,9 @@ SoftwareDeveloper Agent 会自动：
         is_testing = is_test_environment()
 
         # Debug 模式下显示质量评估（即使在测试环境中也显示）
-        if os.environ.get('DEBUG'):
+        # 检查 debug 模式：环境变量
+        is_debug = os.environ.get('DEBUG') == '1'
+        if is_debug:
             self._show_quality_assessment(result, user_input)
 
         # 在测试环境中跳过文件保存（除非显式要求）

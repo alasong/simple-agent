@@ -248,8 +248,12 @@ class WriteFileTool(BaseTool):
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(content)
             return ToolResult(success=True, output=f"成功写入文件：{file_path}")
+        except TypeError as e:
+            # 参数类型错误
+            return ToolResult(success=False, output="", error=f"文件写入参数类型错误: {e}")
         except Exception as e:
-            return ToolResult(success=False, output="", error=str(e))
+            # 其他异常不中断整个任务
+            return ToolResult(success=False, output="", error=f"写入文件失败: {type(e).__name__}: {e}")
 
 
 # ==================== 注册工具到资源仓库 ====================
