@@ -9,8 +9,9 @@ import pytest
 import sys
 import os
 
-# 项目根目录
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# 项目根目录 - 添加 parent directory to=sys.path
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
 
 
 class TestCLITabCompletion:
@@ -18,7 +19,7 @@ class TestCLITabCompletion:
 
     def test_setup_readline_completer_returns_true(self):
         """测试 setup_readline_completer 返回 True"""
-        from cli import setup_readline_completer
+        from simple_agent.cli import setup_readline_completer
         # 在有 readline 的环境下应该返回 True
         result = setup_readline_completer()
         # 如果返回 False，说明 readline 不可用，跳过测试

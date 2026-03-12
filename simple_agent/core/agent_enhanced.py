@@ -8,18 +8,19 @@ from dataclasses import dataclass
 from .agent import Agent
 from .memory_enhanced import EnhancedMemory, Experience
 from .strategies import (
-    ExecutionStrategy, 
-    DirectStrategy, 
-    PlanReflectStrategy, 
+    ExecutionStrategy,
+    DirectStrategy,
+    PlanReflectStrategy,
     TreeOfThoughtStrategy,
     ExecutionResult,
     StrategyFactory
 )
+from .strategy_router import StrategyRouter, StrategyResult
 
 
 class EnhancedAgent(Agent):
     """增强版 Agent，支持高级认知功能"""
-    
+
     def __init__(
         self,
         llm,
@@ -28,49 +29,65 @@ class EnhancedAgent(Agent):
         memory: Optional[EnhancedMemory] = None,
         skill_library=None,
         strategy_name: str = "direct",
+        strategy_router: Optional[StrategyRouter] = None,
         **kwargs
     ):
         super().__init__(llm, tools, system_prompt, **kwargs)
         self.memory_enhanced = memory or EnhancedMemory()
         self.skill_library = skill_library
-        
-        # 使用策略模式
+
+        # 保留原有策略模式（作为备选）
         self._strategy_name = strategy_name
         self._strategy = StrategyFactory.create(strategy_name)
+
+        # 使用统一的 StrategyRouter（优先使用）
+        self.strategy_router = strategy_router
+
+        # 设置默认的 agent_pool = [self]
+        if self.strategy_router and not self.strategy_router.agent_pool:
+            self.strategy_router.agent_pool = [self]
+
         self.confidence_threshold = 0.7
     
     async def run(self, user_input: str, verbose: bool = False) -> str:
         """主执行流程 - 使用策略模式"""
-        # 动态选择策略
-        relevant = await self.memory_enhanced.retrieve_relevant(user_input)
-        strategy_name = await self._select_strategy_name(user_input, relevant)
-        
+        # 优先使用 StrategyRouter 进行决策
+        if self.strategy_router:
+            result = await self.strategy_router.route(user_input)
+            strategy_name = result.strategy.value
+            if verbose:
+                print(f"[Meta] StrategyRouter 选择策略：{strategy_name}")
+        else:
+            # 保留原有策略选择逻辑（向后兼容）
+            relevant = await self.memory_enhanced.retrieve_relevant(user_input)
+            strategy_name = await self._select_strategy_name(user_input, relevant)
+
         # 更新策略
         if strategy_name != self._strategy_name:
             self._strategy_name = strategy_name
             self._strategy = StrategyFactory.create(strategy_name)
-        
-        if verbose:
+
+        if verbose and not self.strategy_router:
             print(f"[Meta] 选择策略：{self._strategy_name}")
-        
+
         # 执行策略
-        result = await self._strategy.execute(self, user_input, verbose)
-        
+        strategy_result = await self._strategy.execute(self, user_input, verbose)
+
         # 记录经验
         exp = Experience(
             content=user_input,
-            context=str(relevant),
-            result=result.output,
-            success=result.success,
+            context=str(strategy_result.suggested_agents) if hasattr(strategy_result, 'suggested_agents') else "",
+            result=strategy_result.output if hasattr(strategy_result, 'output') else str(strategy_result),
+            success=strategy_result.success if hasattr(strategy_result, 'success') else True,
             tags=[self._strategy_name]
         )
         self.memory_enhanced.add_to_short_term(exp)
-        
+
         if len(self.memory_enhanced.experiences) % 10 == 0:
             reflection = self.memory_enhanced.reflect()
             self.memory_enhanced.reflections.append(reflection)
-        
-        return result.output
+
+        return strategy_result.output if hasattr(strategy_result, 'output') else str(strategy_result)
     
     async def _select_strategy_name(self, task: str, relevant: list) -> str:
         """根据任务复杂度选择策略名"""

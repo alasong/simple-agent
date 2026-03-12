@@ -27,6 +27,7 @@ from simple_agent.core.llm import OpenAILLM
 from simple_agent.core.config_loader import get_config
 from simple_agent.core.task_queue import TaskQueue
 from simple_agent.core.task_handle import TaskHandle
+from simple_agent.core.strategy_router import StrategyRouter, create_router
 
 
 class TaskStatus(Enum):
@@ -351,16 +352,23 @@ class TaskComplexityConfig:
 class CLIAgent:
     """
     CLI 入口 Agent
-    
-    只做入口判断，不处理复杂逻辑
+
+    使用 StrategyRouter 统一决策系统来判断任务复杂度和选择执行策略
     自身从配置文件加载
     """
 
-    def __init__(self, llm: Optional[OpenAILLM] = None, max_concurrent: int = 3, instance_id: Optional[str] = None):
+    def __init__(
+        self,
+        llm: Optional[OpenAILLM] = None,
+        max_concurrent: int = 3,
+        instance_id: Optional[str] = None,
+        agent_pool: Optional[List[Any]] = None
+    ):
         self.llm = llm or OpenAILLM()
         self._agent = None  # CLI Agent 实例
         self._planner = None  # Planner Agent，延迟加载
         self._config = get_config()
+        self.agent_pool = agent_pool or []
         # 实例 ID - 用于输出隔离
         self.instance_id = instance_id
         # 任务队列 - 支持后台执行
@@ -373,6 +381,11 @@ class CLIAgent:
         # 任务追踪 - 支持查看正在执行的任务
         self._tasks: Dict[str, TaskInfo] = {}
         self._tasks_lock = threading.Lock()
+        # StrategyRouter - 统一决策系统
+        self.strategy_router = create_router(
+            agent_pool=self.agent_pool,
+            llm=self.llm
+        )
         # Note: CLIAgent delegates to self.agent and self.planner for execution
         # Memory is managed by those agents, not here
     
@@ -706,47 +719,55 @@ SoftwareDeveloper Agent 会自动：
     
     def _is_complex_task(self, user_input: str, verbose: bool = True) -> bool:
         """
-        判断是否为复杂任务 - 采用两级判断策略
+        判断是否为复杂任务 - 使用 StrategyRouter 进行统一决策
 
-        第一级：快速规则过滤（明显的简单任务）
-        第二级：LLM 语义判断（不确定的任务，注入上下文）
+        Returns:
+            True: 复杂任务（需要规划）
+            False: 简单任务（直接处理）
         """
-        # ========== 第一级：快速规则过滤 ==========
+        # 使用 StrategyRouter 进行路由决策
+        import asyncio
 
-        # 空输入或极短输入视为简单任务
-        if not user_input or len(user_input.strip()) < 5:
+        try:
+            # Run the async route function sync
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                result = loop.run_until_complete(self.strategy_router.route(user_input))
+            finally:
+                loop.close()
+
+            # 使用复杂度阈值判断
+            complexity = result.complexity_estimate
+            is_complex = complexity > 0.5
+
             if verbose:
-                print("[CLI Agent] 任务判断：极短输入 -> 简单任务")
-            return False
+                # 只打印关键信息
+                strategy_used = result.strategy.value if hasattr(result, 'strategy') else "unknown"
+                print(f"[CLI Agent] 策略路由: 复杂度={complexity:.2f}, 建议策略={strategy_used}")
 
-        # 明显的简单任务模式（直接返回，不调用 LLM）
-        # 从配置加载，避免硬编码
-        simple_patterns = TaskComplexityConfig.get_simple_patterns()
+            return is_complex
 
-        for pattern in simple_patterns:
-            if pattern in user_input.lower():
-                if verbose:
-                    print(f"[CLI Agent] 任务判断：匹配简单模式 '{pattern}' -> 简单任务")
+        except Exception as e:
+            # StrategyRouter 失败时，降级到原有逻辑
+            if verbose:
+                print(f"[CLI Agent] 策略路由失败：{e}，降级使用规则判断")
+
+            # 降级规则（原始逻辑）
+            if not user_input or len(user_input.strip()) < 5:
                 return False
 
-        # 明显的复杂任务模式（多步骤、多条件）
-        # 从配置加载，避免硬编码
-        complex_patterns = TaskComplexityConfig.get_complex_patterns()
+            complex_patterns = TaskComplexityConfig.get_complex_patterns()
+            for pattern in complex_patterns:
+                if pattern in user_input:
+                    return True
 
-        for pattern in complex_patterns:
-            if pattern in user_input:
-                if verbose:
-                    print(f"[CLI Agent] 任务判断：匹配复杂模式 '{pattern}' -> 复杂任务")
+            # 长度启发式
+            if len(user_input) > 100:
                 return True
-
-        # ========== 第二级：LLM 语义判断（注入上下文） ==========
-
-        if verbose:
-            print("[CLI Agent] 任务判断：规则无法确定，使用 LLM 判断...")
-
-        # 注入上下文后让 LLM 判断
-        enhanced_input = ContextInjector.inject_context(user_input, verbose)
-        return self._llm_judge_complexity(enhanced_input, verbose)
+            if user_input.count(",") >= 2 or user_input.count(";") >= 2:
+                return True
+            return False
     
     def _llm_judge_complexity(self, user_input: str, verbose: bool = True) -> bool:
         """
