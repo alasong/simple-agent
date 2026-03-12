@@ -25,15 +25,19 @@ def cprint(text, color=None, attrs=None):
 
 def load_all_agents():
     """加载所有 Agent 配置"""
-    builtin_agents_dir = Path(__file__).parent.parent / "builtin_agents" / "configs"
+    # Try simple_agent first, then customization
+    builtin_agents_dir = Path(__file__).parent.parent / "simple_agent" / "builtin_agents" / "configs"
+    if not builtin_agents_dir.exists():
+        builtin_agents_dir = Path(__file__).parent.parent / "builtin_agents" / "configs"
+
     agents = []
-    
+
     for yaml_file in builtin_agents_dir.glob("*.yaml"):
         with open(yaml_file, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
             config['_file'] = yaml_file.stem
             agents.append(config)
-    
+
     return agents
 
 
@@ -131,16 +135,15 @@ def print_domain_statistics(domains_count, agents_by_domain):
     
     print()
     cprint("=" * 70, "cyan", attrs=["bold"])
-    
+
     # 总体统计
-    total_agents = len(agents_by_domain.get('general', []))  # 简单估算
     total_domain_refs = sum(domains_count.values())
-    
+
     print(f"\n总体统计:")
-    print(f"  - Agent 总数：{len(domains_count.get('general', [])) + len(domains_count.get('software_engineering', [])) + len(domains_count.get('artificial_intelligence', [])) + len(domains_count.get('finance', []))}")
+    print(f"  - Agent 总数：{len(agents_by_domain)}")
     print(f"  - 领域标签引用：{total_domain_refs} 次")
     print(f"  - 领域类别数：{len(domains_count)} 个")
-    print(f"  - 平均每个 Agent 领域数：{total_domain_refs / max(len(agents_by_domain.get('general', [])), 1):.2f}")
+    print(f"  - 平均每个 Agent 领域数：{total_domain_refs / max(len(agents_by_domain), 1):.2f}")
 
 
 def print_multi_domain_agents(multi_domain):
