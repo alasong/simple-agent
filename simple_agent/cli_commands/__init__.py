@@ -90,7 +90,8 @@ def get_session_commands() -> List[CommandHandler]:
 def get_agent_commands() -> List[CommandHandler]:
     """获取 Agent 管理命令"""
     from .agent_cmds import AgentNewCommand, AgentUpdateCommand, AgentSwitchCommand, \
-                           AgentListCommand, AgentInfoCommand, AgentSaveCommand, AgentLoadCommand
+                           AgentListCommand, AgentInfoCommand, AgentSaveCommand, AgentLoadCommand, \
+                           AgentEditCommand, AgentGenCommand, AgentExtendCommand
     return [
         AgentNewCommand(),
         AgentUpdateCommand(),
@@ -99,6 +100,9 @@ def get_agent_commands() -> List[CommandHandler]:
         AgentInfoCommand(),
         AgentSaveCommand(),
         AgentLoadCommand(),
+        AgentEditCommand(),  # Deep customization
+        AgentGenCommand(),   # Deep customization
+        AgentExtendCommand(),  # Deep customization
     ]
 
 

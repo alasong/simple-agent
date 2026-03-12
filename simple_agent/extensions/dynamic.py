@@ -163,6 +163,105 @@ class DynamicToolRegistry:
         except Exception as e:
             return self._record_error(class_name, str(e))
 
+    def register(self, name: str, func: Callable, description: str = "", **config) -> DynamicRegistrationState:
+        """
+        Register a function directly as a tool without creating a class.
+
+        This allows creating tools from simple functions:
+            registry = get_tool_registry()
+            registry.register("weather", weather_func, description="Get weather")
+
+        Args:
+            name: Tool name (unique identifier)
+            func: Callable function to register
+            description: Tool description
+            **config: Additional configuration passed to the tool
+
+        Returns:
+            Registration state
+        """
+        if not callable(func):
+            return self._record_error(name, "Not callable")
+
+        # Create a dynamic tool class for the function
+        from .base import Extension, ExtensionConfig
+
+        class DynamicFunctionTool(Extension):
+            """Tool that wraps a function."""
+
+            def __init__(self, func: Callable, config: ExtensionConfig):
+                super().__init__(config)
+                self._func = func
+
+            @property
+            def name(self) -> str:
+                return self.config.name
+
+            @property
+            def description(self) -> str:
+                return self.config.description or ""
+
+            def load(self) -> None:
+                self._status = ExtensionStatus.ACTIVE
+
+            def unload(self) -> None:
+                self._status = ExtensionStatus.UNLOADED
+
+            def execute(self, action: str, data: Any = None) -> Any:
+                """Execute the wrapped function."""
+                if action == "run" and data is not None:
+                    try:
+                        return self._func(data)
+                    except Exception as e:
+                        return {"error": str(e)}
+                return None
+
+        # Store config with function info
+        tool_config = ExtensionConfig(
+            name=name,
+            description=description,
+            config=config
+        )
+
+        with self._lock:
+            self._tools[name] = DynamicToolInfo(
+                name=name,
+                tool_class=lambda cfg=tool_config: DynamicFunctionTool(func, cfg),
+                meta={"source": "function", "description": description, **config},
+                state=DynamicRegistrationState.REGISTERED
+            )
+
+        return DynamicRegistrationState.REGISTERED
+
+    def register_class(self, name: str, tool_class: Type, **meta) -> DynamicRegistrationState:
+        """
+        Register an existing tool class by name (skipping inheritance check).
+
+        Useful for registering classes that don't inherit from Extension.
+
+        Args:
+            name: Tool name
+            tool_class: Tool class to register
+            **meta: Additional metadata
+
+        Returns:
+            Registration state
+        """
+        try:
+            if not isinstance(tool_class, type):
+                return self._record_error(name, "Not a class")
+
+            with self._lock:
+                self._tools[name] = DynamicToolInfo(
+                    name=name,
+                    tool_class=tool_class,
+                    meta={**meta, "source": "class"}
+                )
+
+            return DynamicRegistrationState.REGISTERED
+        except Exception as e:
+            return self._record_error(name, str(e))
+
     def instantiate(self, name: str, config: Optional[ExtensionConfig] = None) -> Optional[Any]:
         """
         Instantiate a registered tool.

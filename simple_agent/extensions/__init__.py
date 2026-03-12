@@ -9,6 +9,19 @@ Core Components:
 - ExtensionLoader: Loads extensions from files/directories
 - ExtensionRegistry: Registers and discovers extensions
 - ExtensionManager: Manages extension lifecycle
+
+Decorators (for simplified extension creation):
+- tool_extension: Create tools from functions
+- strategy_extension: Create strategies from functions
+- agent_extension: Create agents from classes/functions
+
+Dynamic Capabilities:
+- DynamicToolRegistry: Runtime tool registration
+- DynamicStrategyRegistry: Runtime strategy registration
+- HotPlugAgentManager: Hot-plug agent support
+
+Scene Extensions:
+- Scene-based extension packages for common scenarios (web_dev, data_analysis, ai_dev)
 """
 
 from .base import Extension, ExtensionConfig, ExtensionStatus
@@ -29,6 +42,29 @@ from .dynamic import (
     get_dynamic_system,
     clear_all
 )
+from .decorator import (
+    tool_extension,
+    strategy_extension,
+    agent_extension,
+    create_tool,
+    create_strategy,
+    register_decorator_extension,
+    get_registered_extension,
+    list_registered_extensions,
+    clear_registered_extensions,
+)
+
+# Scene extensions from customization
+try:
+    from customization.scene import load_scene, list_scenes, list_all_scenes
+except ImportError:
+    # Fallback to custom location
+    try:
+        from simple_agent.customization.scene import load_scene, list_scenes, list_all_scenes
+    except ImportError:
+        load_scene = None
+        list_scenes = lambda: []
+        list_all_scenes = lambda: {}
 
 __all__ = [
     'Extension',
@@ -37,6 +73,16 @@ __all__ = [
     'ExtensionLoader',
     'ExtensionRegistry',
     'ExtensionManager',
+    # Decorators
+    'tool_extension',
+    'strategy_extension',
+    'agent_extension',
+    'create_tool',
+    'create_strategy',
+    'register_decorator_extension',
+    'get_registered_extension',
+    'list_registered_extensions',
+    'clear_registered_extensions',
     # Dynamic capabilities
     'DynamicToolRegistry',
     'DynamicStrategyRegistry',
@@ -50,6 +96,10 @@ __all__ = [
     'get_agent_manager',
     'get_dynamic_system',
     'clear_all',
+    # Scene extensions
+    'load_scene',
+    'list_scenes',
+    'list_all_scenes',
 ]
 
 # Global extension manager instance

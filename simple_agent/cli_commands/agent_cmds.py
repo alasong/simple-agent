@@ -9,6 +9,11 @@ Agent 管理命令
 - /info - 显示当前 Agent 详情
 - /save - 保存当前 Agent
 - /load <名称> - 加载 Agent
+
+Deep Customization (深度定制):
+- /edit - 使用 Natural Language 编辑 Agent
+- /gen <文档> - 从用户文档生成 Agent
+- /extend <工具列表> - 添加工具到 Agent
 """
 
 import os
@@ -323,6 +328,240 @@ class AgentLoadCommand(CommandHandler):
             return CommandResult.error("加载 Agent 失败", str(e))
 
 
+class AgentEditCommand(CommandHandler):
+    """使用自然语言编辑当前 Agent（深度定制）"""
+
+    @property
+    def name(self) -> str:
+        return "edit"
+
+    @property
+    def description(self) -> str:
+        return "使用自然语言编辑 Agent 提示词和配置"
+
+    @property
+    def usage(self) -> str:
+        return "/edit <描述> | /edit --domain <领域> | /edit --tool <工具>"
+
+    def execute(self, args: List[str], context: Dict[str, Any]) -> CommandResult:
+        if not args:
+            return CommandResult.error(
+                "请提供编辑描述",
+                "用法：/edit <描述> | /edit --domain <领域> | /edit --tool <工具>"
+            )
+
+        agent = context.get('current_agent')
+        if not agent:
+            return CommandResult.error("请先加载或创建 Agent")
+
+        try:
+            edit_type = None
+            edit_value = None
+            description = None
+
+            # Parse arguments
+            for i, arg in enumerate(args):
+                if arg == '--domain' and i + 1 < len(args):
+                    edit_type = 'domain'
+                    edit_value = args[i + 1]
+                    break
+                elif arg == '--tool' and i + 1 < len(args):
+                    edit_type = 'tool'
+                    edit_value = args[i + 1]
+                    break
+                elif arg.startswith('--'):
+                    continue
+                else:
+                    if description is None:
+                        description = arg
+                    else:
+                        description += f" {arg}"
+
+            if edit_type == 'domain':
+                # Add domain
+                agent.domains.append(edit_value)
+                return CommandResult.ok(f"已添加领域: {edit_value}")
+
+            elif edit_type == 'tool':
+                # Add tool
+                from simple_agent.core import get_tool_class
+                try:
+                    tool_class = get_tool_class(edit_value)
+                    agent.tool_registry.register_tool(tool_class())
+                    return CommandResult.ok(f"已添加工具: {edit_value}")
+                except Exception as e:
+                    return CommandResult.error(f"无法添加工具 {edit_value}: {e}")
+
+            elif description:
+                # Edit system prompt using user doc generator
+                from simple_agent.user_doc_agent import generate_agent_from_doc
+
+                doc = description
+                config = generate_agent_from_doc(doc, agent.name)
+
+                # Update agent
+                agent.system_prompt = config['system_prompt']
+                if config.get('tools'):
+                    agent.tools = config['tools']
+
+                context['current_agent'] = agent
+                return CommandResult.ok(f"已编辑 Agent:\n{agent}")
+
+            else:
+                return CommandResult.error("无效的编辑命令", self.usage)
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return CommandResult.error("编辑 Agent 失败", str(e))
+
+
+class AgentGenCommand(CommandHandler):
+    """从用户文档生成新的 Agent（深度定制）"""
+
+    @property
+    def name(self) -> str:
+        return "gen"
+
+    @property
+    def description(self) -> str:
+        return "从用户自然语言文档生成 Agent"
+
+    @property
+    def usage(self) -> str:
+        return "/gen <文档> [--name <名称>] [--template <模板>]"
+
+    def execute(self, args: List[str], context: Dict[str, Any]) -> CommandResult:
+        if not args:
+            return CommandResult.error(
+                "请提供 Agent 文档描述",
+                "用法：/gen <文档> [--name <名称>] [--template <模板>]"
+            )
+
+        try:
+            doc_parts = []
+            agent_name = None
+            template = None
+
+            i = 0
+            while i < len(args):
+                if args[i] == '--name' and i + 1 < len(args):
+                    agent_name = args[i + 1]
+                    i += 2
+                elif args[i] == '--template' and i + 1 < len(args):
+                    template = args[i + 1]
+                    i += 2
+                else:
+                    doc_parts.append(args[i])
+                    i += 1
+
+            doc = " ".join(doc_parts)
+
+            from simple_agent.user_doc_agent import generate_agent_from_doc, generate_agent_from_template_doc
+
+            if template:
+                config = generate_agent_from_template_doc(template, {"name": agent_name})
+            else:
+                config = generate_agent_from_doc(doc, agent_name or "CustomAgent")
+
+            # Create agent from config
+            from simple_agent.core import Agent
+            agent = Agent(
+                name=config['name'],
+                system_prompt=config['system_prompt'],
+                llm=context.get('llm', None)
+            )
+
+            # Add tools
+            for tool_name in config.get('tools', []):
+                try:
+                    from simple_agent.core import get_tool_class
+                    tool_class = get_tool_class(tool_name)
+                    agent.tool_registry.register_tool(tool_class())
+                except Exception:
+                    pass
+
+            context['current_agent'] = agent
+            context['agents'][config['name']] = agent
+
+            return CommandResult.ok(
+                f"已从文档生成 Agent:\n"
+                f"  名称: {config['name']}\n"
+                f"  描述: {config['description']}\n"
+                f"  领域: {', '.join(config['domains'][:3])}"
+            )
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return CommandResult.error("生成 Agent 失败", str(e))
+
+
+class AgentExtendCommand(CommandHandler):
+    """扩展当前 Agent 的功能（深度定制）"""
+
+    @property
+    def name(self) -> str:
+        return "extend"
+
+    @property
+    def description(self) -> str:
+        return "扩展 Agent 的工具和能力"
+
+    @property
+    def usage(self) -> str:
+        return "/extend tools <工具列表> | /extend capabilities <能力列表> | /extend domains <领域列表>"
+
+    def execute(self, args: List[str], context: Dict[str, Any]) -> CommandResult:
+        if not args:
+            return CommandResult.error(
+                "请指定扩展类型",
+                "用法：/extend tools <工具> | /extend capabilities <能力> | /extend domains <领域>"
+            )
+
+        agent = context.get('current_agent')
+        if not agent:
+            return CommandResult.error("请先加载或创建 Agent")
+
+        try:
+            action = args[0]
+
+            if action == 'tools':
+                if len(args) < 2:
+                    return CommandResult.error("请提供工具列表", "/extend tools <工具1> [<工具2> ...]")
+                tools_to_add = args[1:]
+                added = []
+                for tool_name in tools_to_add:
+                    try:
+                        from simple_agent.core import get_tool_class
+                        tool_class = get_tool_class(tool_name)
+                        agent.tool_registry.register_tool(tool_class())
+                        added.append(tool_name)
+                    except Exception:
+                        pass
+                return CommandResult.ok(f"已添加 {len(added)} 个工具: {', '.join(added)}")
+
+            elif action == 'domains':
+                if len(args) < 2:
+                    return CommandResult.error("请提供领域列表", "/extend domains <领域1> [<领域2> ...]")
+                agent.domains.extend(args[1:])
+                return CommandResult.ok(f"已添加领域: {', '.join(args[1:])}")
+
+            elif action == 'capabilities':
+                if len(args) < 2:
+                    return CommandResult.error("请提供能力列表", "/extend capabilities <能力1> [<能力2> ...]")
+                agent.capabilities.extend(args[1:])
+                return CommandResult.ok(f"已添加能力: {', '.join(args[1:])}")
+
+            else:
+                return CommandResult.error("未知的扩展类型", "支持的类型: tools, domains, capabilities")
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return CommandResult.error("扩展 Agent 失败", str(e))
+
+
 __all__ = [
     'AgentNewCommand',
     'AgentUpdateCommand',
@@ -331,4 +570,7 @@ __all__ = [
     'AgentInfoCommand',
     'AgentSaveCommand',
     'AgentLoadCommand',
+    'AgentEditCommand',
+    'AgentGenCommand',
+    'AgentExtendCommand',
 ]

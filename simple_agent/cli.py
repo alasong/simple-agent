@@ -209,6 +209,162 @@ def handle_daemon_commands(args):
             print("3. launchctl load -w ~/Library/LaunchAgents/simple-agent.plist")
 
 
+# ============================================================================
+# Template 系统命令处理
+# ============================================================================
+
+def handle_list_templates():
+    """处理 --list-templates 命令"""
+    try:
+        from simple_agent.templates import list_templates, get_template_help
+        from simple_agent.core.rich_output import print_header, print_info
+        RICH_AVAILABLE = True
+    except ImportError:
+        RICH_AVAILABLE = False
+
+    templates = list_templates()
+
+    if RICH_AVAILABLE:
+        print_header("可用模板列表", "=" * 20)
+        print_info(f"\n找到 {len(templates)} 个可用模板:\n")
+        for t in templates:
+            is_base = " (基础模板)" if t.get('base', True) else " (场景模板)"
+            print_info(f"  {t['name']:<20} - {t['description']}{is_base}")
+        print()
+    else:
+        print("可用模板列表:")
+        for t in templates:
+            print(f"  {t['name']}: {t['description']}")
+        print(f"\n共 {len(templates)} 个模板")
+
+
+def handle_create_agent(agent_name: str, template_name: str):
+    """处理 --create-agent 命令"""
+    RICH_AVAILABLE = False
+    print_header = None
+    print_info = None
+    print_error = None
+    load_template = None
+    create_agent_from_template = None
+
+    try:
+        from simple_agent.templates import load_template, create_agent_from_template
+    except (ImportError, ModuleNotFoundError):
+        pass
+
+    try:
+        from simple_agent.core.rich_output import print_header, print_info, print_error
+        RICH_AVAILABLE = True
+    except (ImportError, ModuleNotFoundError):
+        pass
+
+    if load_template is None:
+        if RICH_AVAILABLE:
+            print_error(f"错误: 无法加载模板功能")
+        else:
+            print(f"错误: 无法加载模板功能")
+        return
+
+    # Load template to verify it exists
+    template = load_template(template_name)
+
+    if template is None:
+        if RICH_AVAILABLE:
+            print_error(f"错误: 模板 '{template_name}' 不存在")
+        else:
+            print(f"错误: 模板 '{template_name}' 不存在")
+            print("使用 --list-templates 查看可用模板")
+        return
+
+    # Create agent from template
+    result = create_agent_from_template(
+        template_name=template_name,
+        agent_name=agent_name,
+        output_dir="./agents"
+    )
+
+    if result:
+        if RICH_AVAILABLE:
+            print_header("Agent 创建成功", "=" * 20)
+            print_info(f"  名称: {result.get('name', 'Unknown')}")
+            print_info(f"  版本: {result.get('version', 'Unknown')}")
+            print_info(f"  描述: {result.get('description', 'N/A')}")
+            print_info(f"  保存路径: {result.get('_saved_path', 'N/A')}")
+            print_info(f"  工具: {', '.join(result.get('tools', []))}")
+            print()
+        else:
+            print(f"Agent '{agent_name}' 创建成功!")
+            print(f"  模板: {template_name}")
+            print(f"  保存路径: {result.get('_saved_path', './agents')}")
+    else:
+        if RICH_AVAILABLE:
+            print_error("错误: 创建 Agent 失败")
+        else:
+            print("错误: 创建 Agent 失败")
+
+
+# ============================================================================
+# Config 验证命令处理
+# ============================================================================
+
+def handle_validate_config(config_path: str):
+    """处理 --validate-config 命令"""
+    try:
+        from simple_agent.config_validation import get_validation_status
+        from simple_agent.core.rich_output import print_header, print_info, print_error
+        RICH_AVAILABLE = True
+    except ImportError:
+        RICH_AVAILABLE = False
+
+    status = get_validation_status(config_path)
+
+    if RICH_AVAILABLE:
+        print_header("配置验证结果", "=" * 20)
+        print_info(f"文件路径: {status.get('file_path', 'Unknown')}")
+        print_info(f"配置类型: {status.get('config_type', 'Unknown')}")
+        print_info(f"文件存在: {'是' if status.get('file_exists', False) else '否'}")
+        print_info(f"验证状态: {'✓ 通过' if status.get('valid', False) else '✗ 失败'}")
+        print_info(f"错误数量: {status.get('error_count', 0)}")
+        print()
+
+        if status.get('errors'):
+            print_info("错误详情:")
+            for i, error in enumerate(status['errors'], 1):
+                print_error(f"  {i}. {error}")
+    else:
+        print(f"配置验证: {config_path}")
+        print(f"状态: {'通过' if status['valid'] else '失败'}")
+        if status['errors']:
+            for error in status['errors']:
+                print(f"  {error}")
+
+
+def handle_generate_config(output_path: str, config_type: str = "agent"):
+    """处理 --generate-config 命令"""
+    try:
+        from simple_agent.config_validation import generate_config_file
+        from simple_agent.core.rich_output import print_header, print_info
+        RICH_AVAILABLE = True
+    except ImportError:
+        RICH_AVAILABLE = False
+
+    path = generate_config_file(config_type=config_type, output_path=output_path)
+
+    if path:
+        if RICH_AVAILABLE:
+            print_header("配置文件生成成功", "=" * 20)
+            print_info(f"文件路径: {path}")
+            print_info(f"配置类型: {config_type}")
+            print()
+        else:
+            print(f"配置文件已生成: {path}")
+    else:
+        if RICH_AVAILABLE:
+            print_error("错误: 生成配置文件失败")
+        else:
+            print("错误: 生成配置文件失败")
+
+
 def interactive_mode(coordinator: CLICoordinator):
     """交互模式"""
     # 设置 readline 自动补全
@@ -272,7 +428,22 @@ def interactive_mode(coordinator: CLICoordinator):
 
 def main():
     """主函数"""
-    parser = argparse.ArgumentParser(description="CLI Agent - 智能任务助手（精简版）")
+    parser = argparse.ArgumentParser(
+        description="CLI Agent - 智能任务助手（精简版）",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+示例:
+  python cli.py                      # 进入交互模式
+  python cli.py "帮我写个函数"        # 单次任务
+  python cli.py --create-agent my_agent --template developer  # 创建新 Agent
+  python cli.py --list-templates     # 列出所有模板
+
+深度定制命令（交互模式）:
+  /edit <描述>                       # 使用自然语言编辑 Agent
+  /gen <文档> [--name 名称]          # 从文档生成 Agent
+  /extend tools <工具列表>           # 扩展 Agent 工具
+        """
+    )
 
     # 守护进程命令
     daemon_group = parser.add_argument_group('守护进程命令')
@@ -282,6 +453,26 @@ def main():
     daemon_group.add_argument("--status", action="store_true", help="查看守护进程状态")
     daemon_group.add_argument("--logs", nargs="?", const=50, type=int, help="查看日志（默认 50 行）")
     daemon_group.add_argument("--install-service", action="store_true", help="生成 systemd/launchd 服务配置")
+
+    # Template 系统命令
+    template_group = parser.add_argument_group('Template 系统')
+    template_group.add_argument("--create-agent", type=str, metavar="NAME",
+                               help="创建新 Agent，需要配合 --template 使用")
+    template_group.add_argument("--template", type=str, metavar="NAME",
+                               help="使用的模板名称（配合 --create-agent）")
+    template_group.add_argument("--list-templates", action="store_true",
+                               help="列出所有可用模板")
+    template_group.add_argument("--template-dir", action="store_true",
+                               help="显示模板目录路径")
+
+    # Config 验证命令
+    config_group = parser.add_argument_group('Config 验证')
+    config_group.add_argument("--validate-config", type=str, metavar="PATH",
+                             help="验证配置文件")
+    config_group.add_argument("--generate-config", type=str, metavar="PATH",
+                             help="生成配置文件模板")
+    config_group.add_argument("--config-type", choices=["agent", "extension"],
+                             default="agent", help="配置类型（配合 --generate-config）")
 
     parser.add_argument("input", nargs="?", help="任务描述")
     parser.add_argument("-t", "--task", help="单次任务")
@@ -297,6 +488,34 @@ def main():
     # 守护进程命令处理
     if args.start or args.stop or args.restart or args.status or args.logs or args.install_service:
         handle_daemon_commands(args)
+        return
+
+    # Template 系统命令处理
+    if args.list_templates:
+        handle_list_templates()
+        return
+
+    if args.template_dir:
+        from simple_agent.templates.loader import get_template_dir
+        print(f"模板目录: {get_template_dir()}")
+        return
+
+    if args.create_agent and args.template:
+        handle_create_agent(args.create_agent, args.template)
+        return
+
+    if args.create_agent and not args.template:
+        print_error("错误: --create-agent 需要配合 --template 使用")
+        print("示例: python cli.py --create-agent my_agent --template developer")
+        return
+
+    # Config 验证命令处理
+    if args.validate_config:
+        handle_validate_config(args.validate_config)
+        return
+
+    if args.generate_config:
+        handle_generate_config(args.generate_config, args.config_type)
         return
 
     # 创建协调器
